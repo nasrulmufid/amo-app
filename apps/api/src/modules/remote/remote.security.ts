@@ -300,3 +300,30 @@ export function rewriteLocation(
   const path = `${url.pathname}${url.search}${url.hash}`
   return `${remotePrefix}${path.startsWith('/') ? path : `/${path}`}`
 }
+
+/** Rewrite root-relative HTML/CSS resources so browser requests stay in the proxy. */
+export function rewriteRootRelativeResourceUrls(content: string, remotePrefix: string): string {
+  const prefixPath = (path: string) => {
+    if (path === remotePrefix || path.startsWith(`${remotePrefix}/`)) return path
+    return `${remotePrefix}${path}`
+  }
+
+  const attributes = '(?:src|href|action|formaction|poster|background|data|cite|manifest)'
+  return content
+    .replace(
+      new RegExp(`(\\b${attributes}\\s*=\\s*)(["'])(\\/(?!\\/)[^"']*)\\2`, 'gi'),
+      (_match, assignment: string, quote: string, path: string) => `${assignment}${quote}${prefixPath(path)}${quote}`,
+    )
+    .replace(
+      new RegExp(`(\\b${attributes}\\s*=\\s*)(\\/(?!\\/)[^\\s"'<>]+)`, 'gi'),
+      (_match, assignment: string, path: string) => `${assignment}${prefixPath(path)}`,
+    )
+    .replace(
+      /url\(\s*(["']?)(\/(?!\/)[^)'"\s]+)(["']?\s*\))/gi,
+      (_match, quote: string, path: string, closing: string) => `url(${quote}${prefixPath(path)}${closing}`,
+    )
+    .replace(
+      /(@import\s+)(["'])(\/(?!\/)[^"']*)\2/gi,
+      (_match, importRule: string, quote: string, path: string) => `${importRule}${quote}${prefixPath(path)}${quote}`,
+    )
+}

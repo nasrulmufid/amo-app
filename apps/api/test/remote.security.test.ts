@@ -6,6 +6,7 @@ import {
   RemoteTargetError,
   resolveRemoteTarget,
   rewriteLocation,
+  rewriteRootRelativeResourceUrls,
   sanitizeRemotePath,
   sanitizeRequestHeaders,
   sanitizeResponseHeaders,
@@ -157,5 +158,18 @@ describe('rewrite redirect', () => {
   it('redirect ke host LAIN diblokir (null)', () => {
     expect(rewriteLocation('http://evil.example/x', origin, prefix)).toBeNull()
     expect(rewriteLocation('https://172.2.1.3/x', origin, prefix)).toBeNull() // skema berbeda = origin berbeda
+  })
+})
+
+describe('rewrite resource URL halaman ONU', () => {
+  it('menambahkan prefix proxy untuk URL root-relative tanpa mengubah URL eksternal', () => {
+    const source = `<img src="/images/logo.gif"><img src=/images/legacy-logo.gif><link href='/style/main.css'><div style="background:url(/images/header.gif)"></div><a href="//cdn.example/icon.png">CDN</a>`
+    const result = rewriteRootRelativeResourceUrls(source, '/remote/uuid-1')
+
+    expect(result).toContain('src="/remote/uuid-1/images/logo.gif"')
+    expect(result).toContain('src=/remote/uuid-1/images/legacy-logo.gif')
+    expect(result).toContain("href='/remote/uuid-1/style/main.css'")
+    expect(result).toContain('url(/remote/uuid-1/images/header.gif)')
+    expect(result).toContain('href="//cdn.example/icon.png"')
   })
 })

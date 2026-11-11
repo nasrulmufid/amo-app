@@ -10,6 +10,7 @@ import { RemoteRepository } from './remote.repository'
 import {
   RemoteTargetError,
   rewriteLocation,
+  rewriteRootRelativeResourceUrls,
   sanitizeRemotePath,
   sanitizeRequestHeaders,
   sanitizeResponseHeaders,
@@ -166,6 +167,8 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
       ctx.origin,
       path,
     )
+    // Body HTML/CSS perlu dibaca sebagai teks untuk rewrite path aset.
+    requestHeaders['accept-encoding'] = 'identity'
 
     // `reply.from` memakai `source` relatif terhadap `base`; query diteruskan apa adanya.
     const source = `${path}${query}`
@@ -189,6 +192,14 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
           }
         }
 
+        const contentType = String(clean['content-type'] ?? '')
+        const isRewritableText = /\btext\/(?:html|css)\b/i.test(contentType)
+          && clean['content-encoding'] === undefined
+        if (isRewritableText) {
+          delete clean['content-length']
+          delete clean.etag
+        }
+
         // Cookie perangkat: scope ke prefix remote & beri awalan agar tidak menimpa cookie AMO.
         const setCookie = clean['set-cookie']
         if (setCookie !== undefined) {
@@ -200,7 +211,7 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
         clean['x-frame-options'] = 'SAMEORIGIN'
         return clean
       },
-      onResponse: (req, rep, res) => {
+      onResponse: async (req, rep, res) => {
         // `res` adalah respons mentah Node (IncomingMessage) + `stream`.
         const rawHeaders = (res as unknown as { headers?: Record<string, string | string[] | undefined> }).headers ?? {}
         const length = Number(rawHeaders['content-length'] ?? 0)
@@ -209,6 +220,43 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
           rep.code(502).send({ error: { code: 'UPSTREAM_ERROR', message: 'Respons perangkat terlalu besar.', requestId: req.id } })
           return
         }
+
+        const contentType = String(rawHeaders['content-type'] ?? '')
+        const isRewritableText = /\btext\/(?:html|css)\b/i.test(contentType)
+          && rawHeaders['content-encoding'] === undefined
+        if (isRewritableText) {
+          const chunks: Buffer[] = []
+          let totalBytes = 0
+          for await (const chunk of res.stream) {
+            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+            totalBytes += buffer.length
+            if (totalBytes > MAX_RESPONSE_BYTES) {
+              res.stream.destroy()
+              rep.code(502).send({ error: { code: 'UPSTREAM_ERROR', message: 'Respons perangkat terlalu besar.', requestId: req.id } })
+              return
+            }
+            chunks.push(buffer)
+          }
+          const body = Buffer.concat(chunks).toString('utf8')
+          const rewritten = rewriteRootRelativeResourceUrls(body, prefix)
+          const output = Buffer.from(rewritten)
+          if (output.length > MAX_RESPONSE_BYTES) {
+            rep.code(502).send({ error: { code: 'UPSTREAM_ERROR', message: 'Respons perangkat terlalu besar.', requestId: req.id } })
+            return
+          }
+          void service.log({
+            userId,
+            deviceUuid: ctx.target.uuid,
+            target: ctx.resolved.ip,
+            port: ctx.target.remotePort,
+            result: 'ok',
+            statusCode: res.statusCode ?? null,
+            requestId: req.id,
+          })
+          rep.send(output)
+          return
+        }
+
         void service.log({
           userId,
           deviceUuid: ctx.target.uuid,
