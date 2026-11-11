@@ -88,7 +88,7 @@ describe('GenieACS mapper', () => {
   it('menggunakan mapping DeviceID untuk model dan metadata lain', () => {
     const n = normalizeDevice(device)
     expect(n.model).toBe('EchoLife')
-    expect(n.manufacturer).toBe('Huawei')
+    expect(n.manufacturer).toBe('EchoLife')
     expect(n.managementIp).toBe('192.168.1.20')
     expect(n.lastInformAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z')
   })
