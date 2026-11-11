@@ -21,12 +21,14 @@ export function RemoteButton({
   disabledReason,
   size,
   className,
+  compact = false,
 }: {
   uuid: string
   disabled?: boolean
   disabledReason?: string
   size?: ComponentProps<typeof Button>['size']
   className?: string
+  compact?: boolean
 }) {
   const { can } = useAuth()
   const remoteWindowRef = useRef<Window | null>(null)
@@ -79,11 +81,12 @@ export function RemoteButton({
       onClick={handleClick}
       disabled={disabled || mutation.isPending}
       title={disabled ? disabledReason : undefined}
+      aria-label="Buka Remote"
       size={size}
       className={className}
     >
       {mutation.isPending ? <Loader2 className="animate-spin" aria-hidden /> : <ExternalLink aria-hidden />}
-      Buka Remote
+      <span className={compact ? 'max-[480px]:sr-only' : undefined}>Buka Remote</span>
     </Button>
   )
 }

@@ -33,9 +33,9 @@ const STATUS_COLOR: Record<string, string> = {
 const STATUS_LABEL: Record<DeviceDisplayStatus, string> = {
   online: 'Online',
   offline: 'Offline',
-  unknown: 'Status belum diketahui',
-  stale: 'Sinkronisasi tertunda',
-  sync_error: 'Sinkronisasi gagal',
+  unknown: 'Unknown',
+  stale: 'Stale',
+  sync_error: 'Sync error',
 }
 
 const STATUS_BADGE_CLASS: Record<DeviceDisplayStatus, string> = {
@@ -131,10 +131,10 @@ export default function MapView({ points, focus }: { points: InventoryMapPointDT
       <div ref={containerRef} className="h-[32rem] w-full rounded-xl border" aria-label="Peta lokasi perangkat" />
       {popupPortals.map(({ uuid, container, popup, point }) =>
         createPortal(
-          <Card size="sm" className="w-64 overflow-hidden border-border/80 py-0 shadow-none">
-            <CardHeader className="flex flex-row items-start justify-between gap-3 border-b px-3 py-2">
+          <Card size="sm" className="w-60 max-w-[calc(100vw-2rem)] overflow-hidden border-border/80 py-0 shadow-none">
+            <CardHeader className="flex flex-row items-start justify-between gap-2 border-b px-3 py-1.5">
               <div className="min-w-0">
-                <CardTitle className="truncate text-sm">
+                <CardTitle className="truncate text-xs">
                   <Link
                     to={`/inventory/${point.uuid}`}
                     className="hover:text-primary hover:underline"
@@ -143,7 +143,7 @@ export default function MapView({ points, focus }: { points: InventoryMapPointDT
                     {point.name}
                   </Link>
                 </CardTitle>
-                <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
                   {point.serialNumber ?? 'Serial belum ada'}
                 </p>
               </div>
@@ -156,14 +156,14 @@ export default function MapView({ points, focus }: { points: InventoryMapPointDT
                 <span aria-hidden>×</span>
               </button>
             </CardHeader>
-            <CardContent className="grid gap-2 px-3 py-2">
+            <CardContent className="grid gap-1.5 px-3 py-1.5">
               <div className="flex flex-wrap items-center">
-                <Badge variant="outline" className={STATUS_BADGE_CLASS[point.displayStatus]}>
+                <Badge variant="outline" className={`${STATUS_BADGE_CLASS[point.displayStatus]} text-[10px]`}>
                   <span className="size-1.5 rounded-full bg-current" aria-hidden />
                   {STATUS_LABEL[point.displayStatus]}
                 </Badge>
               </div>
-              <dl className="grid gap-1.5 text-xs">
+              <dl className="grid gap-1 text-[11px]">
                 <div className="grid grid-cols-[4.5rem_1fr] items-start gap-2">
                   <dt className="text-muted-foreground">Model</dt>
                   <dd className="min-w-0 truncate text-right font-medium">
@@ -176,9 +176,21 @@ export default function MapView({ points, focus }: { points: InventoryMapPointDT
                 </div>
               </dl>
             </CardContent>
-            <CardFooter className="flex gap-2 border-t px-3 py-2">
-              {can('remote.open') && <RemoteButton uuid={point.uuid} size="sm" className="min-w-0 flex-1" />}
-              <Button asChild size="sm" variant="outline" className={!can('remote.open') ? 'w-full' : undefined}>
+            <CardFooter className="flex gap-2 border-t px-3 py-1.5">
+              {can('remote.open') && (
+                <RemoteButton
+                  uuid={point.uuid}
+                  size="sm"
+                  compact
+                  className="min-w-0 flex-1 text-xs max-[480px]:size-8 max-[480px]:flex-none max-[480px]:px-0"
+                />
+              )}
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className={`text-xs ${!can('remote.open') ? 'w-full' : 'max-[480px]:flex-1'}`}
+              >
                 <Link to={`/inventory/${point.uuid}`} onClick={() => popup.remove()}>
                   <ExternalLink aria-hidden />
                   Detail
