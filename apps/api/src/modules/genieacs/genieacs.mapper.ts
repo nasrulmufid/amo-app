@@ -50,15 +50,15 @@ export interface NormalizedDevice {
   lastInformAt: Date | null
 }
 
-/** Telusuri path bertitik (`A.B.C`) pada pohon NBI dan kembalikan `_value`-nya sebagai string. */
+/** Telusuri path bertitik (`A.B.C`) pada pohon NBI. GenieACS dapat mengirim leaf sebagai `_value` atau nilai langsung. */
 export function readParam(device: GenieDevice, path: string): string | null {
   let node: unknown = device
   for (const key of path.split('.')) {
     if (node === null || typeof node !== 'object') return null
     node = (node as Record<string, unknown>)[key]
   }
-  if (node === null || typeof node !== 'object') return null
-  const value = (node as { _value?: unknown })._value
+  if (node === null || node === undefined) return null
+  const value = typeof node === 'object' ? (node as { _value?: unknown })._value : node
   if (value === undefined || value === null) return null
   const text = String(value).trim()
   return text === '' ? null : text

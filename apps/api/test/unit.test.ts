@@ -89,6 +89,7 @@ describe('GenieACS mapper', () => {
     const n = normalizeDevice(device)
     expect(n.model).toBe('EchoLife')
     expect(n.manufacturer).toBe('EchoLife')
+    expect(n.productClass).toBe('HG8245H')
     expect(n.managementIp).toBe('192.168.1.20')
     expect(n.lastInformAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z')
   })

@@ -16,6 +16,7 @@ export interface DeviceUpsert {
   serialNumber: string | null
   manufacturer: string | null
   model: string | null
+  productClass: string | null
   managementIp: string | null
   lastInformAt: Date | null
   lastSyncedAt: Date
@@ -101,13 +102,14 @@ export class SyncRepository {
   async upsertDevice(d: DeviceUpsert): Promise<number> {
     await this.db.query(
       `INSERT INTO onu_devices
-         (genieacs_device_id, serial_number, manufacturer, model, management_ip, last_inform_at, last_synced_at,
-          online_status, parameters_json, sync_error)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (genieacs_device_id, serial_number, manufacturer, model, product_class, management_ip, last_inform_at, last_synced_at,
+         online_status, parameters_json, sync_error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          serial_number   = VALUES(serial_number),
          manufacturer    = VALUES(manufacturer),
          model           = VALUES(model),
+         product_class   = VALUES(product_class),
          management_ip   = COALESCE(VALUES(management_ip), management_ip),
          last_inform_at  = VALUES(last_inform_at),
          last_synced_at  = VALUES(last_synced_at),
@@ -119,6 +121,7 @@ export class SyncRepository {
         d.serialNumber,
         d.manufacturer,
         d.model,
+        d.productClass,
         d.managementIp,
         d.lastInformAt,
         d.lastSyncedAt,

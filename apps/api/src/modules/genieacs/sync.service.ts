@@ -89,6 +89,7 @@ export class SyncService {
             serialNumber: normalized.serialNumber,
             manufacturer: normalized.manufacturer,
             model: normalized.model,
+            productClass: normalized.productClass,
             managementIp: normalized.managementIp,
             lastInformAt: normalized.lastInformAt,
             lastSyncedAt: now,

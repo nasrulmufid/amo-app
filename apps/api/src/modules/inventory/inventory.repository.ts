@@ -37,6 +37,7 @@ export interface InventoryRow {
   deviceSerialNumber: string | null
   deviceManufacturer: string | null
   deviceModel: string | null
+  deviceProductClass: string | null
   deviceManagementIp: string | null
   lastInformAt: Date | null
   lastSyncedAt: Date | null
@@ -70,6 +71,7 @@ interface Row extends RowDataPacket {
   device_serial_number: string | null
   device_manufacturer: string | null
   device_model: string | null
+  device_product_class: string | null
   device_management_ip: string | null
   last_inform_at: Date | null
   last_synced_at: Date | null
@@ -84,6 +86,7 @@ interface Row extends RowDataPacket {
   i.latitude, i.longitude, i.notes, i.is_active, i.created_at, i.updated_at,
   d.id AS device_id, d.genieacs_device_id, d.serial_number AS device_serial_number,
   d.manufacturer AS device_manufacturer, d.model AS device_model,
+  d.product_class AS device_product_class,
   d.management_ip AS device_management_ip,
   d.last_inform_at, d.last_synced_at, d.online_status, d.sync_error, d.parameters_json`
 
@@ -114,6 +117,7 @@ const toRow = (r: Row): InventoryRow => ({
   deviceSerialNumber: r.device_serial_number,
   deviceManufacturer: r.device_manufacturer,
   deviceModel: r.device_model,
+  deviceProductClass: r.device_product_class,
   deviceManagementIp: r.device_management_ip,
   lastInformAt: r.last_inform_at,
   lastSyncedAt: r.last_synced_at,
@@ -389,6 +393,7 @@ export class InventoryRepository {
           SET i.serial_number = COALESCE(i.serial_number, d.serial_number),
               i.manufacturer  = COALESCE(i.manufacturer, d.manufacturer),
               i.model         = COALESCE(i.model, d.model),
+              i.product_class = COALESCE(i.product_class, d.product_class),
               i.management_ip = COALESCE(i.management_ip, d.management_ip)
         WHERE i.id = ?`,
       [inventoryId],

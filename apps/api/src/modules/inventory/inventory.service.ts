@@ -309,7 +309,7 @@ export class InventoryService {
     return {
       ...this.toListItem(row),
       oui: row.oui,
-      productClass: row.productClass,
+      productClass: row.productClass ?? row.deviceProductClass,
       remoteScheme: row.remoteScheme,
       remotePort: row.remotePort,
       address: row.address,
