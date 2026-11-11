@@ -63,8 +63,8 @@ export default function MapView({ points, focus }: { points: InventoryMapPointDT
   return (
     <MapContainer center={center} zoom={12} className="h-[32rem] w-full rounded-xl border" scrollWheelZoom>
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitBounds points={points} focus={focus} />
       {points.map((p) => (
