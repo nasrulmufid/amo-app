@@ -1,0 +1,36 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  AMO API — image produksi (multi-stage). Build dari ROOT repo:
+#     docker build -f deploy/Dockerfile.api -t amo-api .
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── Stage 1: build (butuh devDependencies: tsup, typescript) ──
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+# Salin manifest dulu → layer `npm ci` ter-cache selama dependensi tak berubah.
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+RUN npm ci -w @amo/api -w @amo/shared --include-workspace-root=false
+COPY packages/shared packages/shared
+COPY apps/api apps/api
+RUN npm run build -w @amo/api
+
+# ── Stage 2: runtime (hanya dependensi produksi) ──
+FROM node:22-bookworm-slim AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+RUN npm ci -w @amo/api -w @amo/shared --omit=dev --include-workspace-root=false && npm cache clean --force
+COPY --from=build /app/apps/api/dist apps/api/dist
+COPY database database
+ENV MIGRATIONS_DIR=/app/database/migrations
+# Jangan jalan sebagai root.
+USER node
+EXPOSE 3000
+WORKDIR /app/apps/api
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Migrasi dijalankan dulu (aman: memakai GET_LOCK + idempoten), baru API start.
+CMD ["sh", "-c", "node dist/scripts/migrate.js && node dist/server.js"]

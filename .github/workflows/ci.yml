@@ -1,0 +1,34 @@
+# CI (PRD §13.5): typecheck + test + build untuk API dan Web.
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: amo
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      # Menjalankan integration test (test/auth.integration.test.ts) terhadap MySQL service di atas.
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/amo
+      INTEGRATION_DATABASE_URL: mysql://root:root@127.0.0.1:3306/amo
+      APP_BASE_URL: http://localhost:5173
+      SESSION_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

@@ -1,0 +1,335 @@
+import { useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Filter,
+  Plus,
+  Router,
+  Search,
+  X,
+} from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Empty, EmptyDescription, EmptyIcon, EmptyTitle } from '@/components/ui/empty'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { StatusBadge } from '@/components/StatusBadge'
+import { useAuth } from '@/features/auth/auth-context'
+import { formatRelative } from '@/lib/format'
+import { fetchInventory, fetchInventoryFacets, inventoryKeys, type InventoryListParams } from './inventory.api'
+import { InventoryFormDialog } from './InventoryFormDialog'
+
+const PAGE_SIZE = 25
+
+/**
+ * Inventaris ONU (PRD §3.3, §5.2).
+ *
+ * - Pencarian & filter disimpan di URL (bisa dibagikan / di-refresh tanpa kehilangan state).
+ * - Pagination di sisi SERVER.
+ * - Empat state wajib: loading (skeleton), error (alert + coba lagi), empty, data.
+ */
+export default function InventoryPage() {
+  const { can } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [formOpen, setFormOpen] = useState(false)
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '')
+
+  const params: InventoryListParams = useMemo(
+    () => ({
+      page: Number(searchParams.get('page') ?? 1),
+      pageSize: PAGE_SIZE,
+      q: searchParams.get('q') ?? undefined,
+      status: searchParams.get('status') ?? undefined,
+      manufacturer: searchParams.get('manufacturer') ?? undefined,
+      model: searchParams.get('model') ?? undefined,
+      linked: searchParams.get('linked') ?? undefined,
+      sort: searchParams.get('sort') ?? 'createdAt',
+      order: searchParams.get('order') ?? 'desc',
+    }),
+    [searchParams],
+  )
+
+  const list = useQuery({
+    queryKey: inventoryKeys.list(params),
+    queryFn: () => fetchInventory(params),
+    placeholderData: keepPreviousData,
+  })
+  const facets = useQuery({ queryKey: inventoryKeys.facets, queryFn: fetchInventoryFacets, staleTime: 5 * 60_000 })
+
+  /** Ubah satu parameter filter; reset ke halaman 1 kecuali yang diubah adalah `page`. */
+  const setParam = (key: string, value: string | undefined) => {
+    const next = new URLSearchParams(searchParams)
+    if (value === undefined || value === '' || value === 'all') next.delete(key)
+    else next.set(key, value)
+    if (key !== 'page') next.delete('page')
+    setSearchParams(next, { replace: true })
+  }
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setParam('q', searchInput.trim() || undefined)
+  }
+
+  const clearFilters = () => {
+    setSearchInput('')
+    setSearchParams(new URLSearchParams(), { replace: true })
+  }
+
+  const hasFilters = ['q', 'status', 'manufacturer', 'model', 'linked'].some((k) => searchParams.has(k))
+  const pagination = list.data?.pagination
+  const items = list.data?.items ?? []
+
+  return (
+    <div className="grid grid-cols-1 gap-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Inventaris ONU</h1>
+          <p className="text-sm text-muted-foreground">Cari, filter, dan kelola semua perangkat yang terdaftar.</p>
+        </div>
+        {can('inventory.write') && (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus aria-hidden /> Tambah / Tautkan ONU
+          </Button>
+        )}
+      </header>
+
+      {/* Filter bar */}
+      <Card>
+        <CardContent className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <form onSubmit={submitSearch} className="flex min-w-56 flex-1 items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Cari nama / serial / IP / lokasi…"
+                  className="pl-8"
+                  aria-label="Cari perangkat"
+                />
+              </div>
+              <Button type="submit" variant="secondary">
+                Cari
+              </Button>
+            </form>
+
+            <Select value={params.status ?? 'all'} onValueChange={(v) => setParam('status', v)}>
+              <SelectTrigger className="w-36" aria-label="Filter status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua status</SelectItem>
+                <SelectItem value="online">Online</SelectItem>
+                <SelectItem value="offline">Offline</SelectItem>
+                <SelectItem value="unknown">Unknown</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={params.manufacturer ?? 'all'} onValueChange={(v) => setParam('manufacturer', v)}>
+              <SelectTrigger className="w-40" aria-label="Filter vendor">
+                <SelectValue placeholder="Vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua vendor</SelectItem>
+                {(facets.data?.manufacturers ?? []).map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={params.model ?? 'all'} onValueChange={(v) => setParam('model', v)}>
+              <SelectTrigger className="w-40" aria-label="Filter model">
+                <SelectValue placeholder="Model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua model</SelectItem>
+                {(facets.data?.models ?? []).map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={params.linked ?? 'all'} onValueChange={(v) => setParam('linked', v)}>
+              <SelectTrigger className="w-40" aria-label="Filter tautan ACS">
+                <SelectValue placeholder="Tautan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua tautan</SelectItem>
+                <SelectItem value="linked">Tertaut GenieACS</SelectItem>
+                <SelectItem value="unlinked">Belum tertaut</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X aria-hidden /> Reset
+              </Button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Filter className="size-3.5" aria-hidden />
+            <span>Urutkan:</span>
+            <Select value={params.sort ?? 'createdAt'} onValueChange={(v) => setParam('sort', v)}>
+              <SelectTrigger size="sm" className="w-36" aria-label="Urutkan berdasarkan">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="createdAt">Terbaru</SelectItem>
+                <SelectItem value="name">Nama</SelectItem>
+                <SelectItem value="lastSyncedAt">Sinkronisasi</SelectItem>
+                <SelectItem value="status">Status</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={params.order ?? 'desc'} onValueChange={(v) => setParam('order', v)}>
+              <SelectTrigger size="sm" className="w-28" aria-label="Arah urutan">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Menurun</SelectItem>
+                <SelectItem value="asc">Menaik</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {list.isError && (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>Gagal memuat inventaris</AlertTitle>
+          <AlertDescription>
+            <p>{list.error instanceof Error ? list.error.message : 'Terjadi kesalahan.'}</p>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => list.refetch()} disabled={list.isFetching}>
+              Coba lagi
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardContent>
+          {list.isPending ? (
+            <div className="grid gap-2">
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
+            </div>
+          ) : items.length === 0 ? (
+            <Empty>
+              <EmptyIcon>
+                <Router />
+              </EmptyIcon>
+              <EmptyTitle>{hasFilters ? 'Tidak ada perangkat yang cocok' : 'Belum ada perangkat terdaftar'}</EmptyTitle>
+              <EmptyDescription>
+                {hasFilters
+                  ? 'Coba ubah kata kunci atau reset filter.'
+                  : 'Tambahkan perangkat baru atau jalankan sinkronisasi GenieACS untuk mengisi inventaris.'}
+              </EmptyDescription>
+              {hasFilters ? (
+                <Button variant="outline" size="sm" onClick={clearFilters}>
+                  Reset filter
+                </Button>
+              ) : can('inventory.write') ? (
+                <Button size="sm" onClick={() => setFormOpen(true)}>
+                  <Plus aria-hidden /> Tambah perangkat
+                </Button>
+              ) : null}
+            </Empty>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama perangkat</TableHead>
+                  <TableHead>Serial number</TableHead>
+                  <TableHead>Model</TableHead>
+                  <TableHead>IP</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sinkronisasi</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((d) => (
+                  <TableRow key={d.uuid}>
+                    <TableCell>
+                      <Link to={`/inventory/${d.uuid}`} className="font-medium hover:underline">
+                        {d.name}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">{d.locationName ?? 'Lokasi belum diisi'}</div>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{d.serialNumber ?? '—'}</TableCell>
+                    <TableCell>
+                      {[d.manufacturer, d.model].filter(Boolean).join(' ') || '—'}
+                      {!d.linked && (
+                        <Badge variant="outline" className="ml-2 text-[10px]">
+                          belum tertaut
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{d.managementIp ?? '—'}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={d.displayStatus} />
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatRelative(d.lastSyncedAt)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/inventory/${d.uuid}`}>
+                          Detail <ExternalLink aria-hidden />
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
+          {pagination && pagination.total > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>
+                Menampilkan {(pagination.page - 1) * pagination.pageSize + 1}–
+                {Math.min(pagination.page * pagination.pageSize, pagination.total)} dari {pagination.total} perangkat
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page <= 1}
+                  onClick={() => setParam('page', String(pagination.page - 1))}
+                >
+                  <ChevronLeft aria-hidden /> Sebelumnya
+                </Button>
+                <span className="px-2">
+                  {pagination.page} / {Math.max(pagination.totalPages, 1)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => setParam('page', String(pagination.page + 1))}
+                >
+                  Berikutnya <ChevronRight aria-hidden />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <InventoryFormDialog open={formOpen} onOpenChange={setFormOpen} />
+    </div>
+  )
+}

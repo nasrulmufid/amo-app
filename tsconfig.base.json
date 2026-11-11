@@ -1,0 +1,26 @@
+{
+  // ──────────────────────────────────────────────────────────────────────────
+  // TSConfig dasar untuk seluruh monorepo.
+  // PRD §6 "Standar implementasi": TypeScript strict mode untuk frontend & backend.
+  // Tiap workspace (apps/api, apps/web, packages/shared) meng-extend file ini.
+  // ──────────────────────────────────────────────────────────────────────────
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    // "Bundler" = import tanpa ekstensi (.js) boleh. Dipakai oleh tsx/tsup (API) dan Vite (web).
+    "moduleResolution": "Bundler",
+    "strict": true,
+    // Akses array/record bertipe `T | undefined` → memaksa kita menangani kasus kosong.
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    // Type-checking saja; kompilasi dikerjakan tsup (API) & Vite (web).
+    "noEmit": true
+  }
+}

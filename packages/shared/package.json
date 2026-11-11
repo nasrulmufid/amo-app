@@ -1,0 +1,9 @@
+{
+  "name": "@amo/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kontrak bersama API <-> Web: konstanta, tipe DTO, dan matriks izin.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" }
+}

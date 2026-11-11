@@ -1,0 +1,7 @@
+# Override KHUSUS PENGEMBANGAN: buka MySQL ke localhost saja agar `npm run dev` bisa terhubung.
+#   npm run docker:dev-db
+# JANGAN dipakai di server produksi.
+services:
+  mysql:
+    ports:
+      - "127.0.0.1:3306:3306"
