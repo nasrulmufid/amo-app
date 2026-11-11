@@ -348,4 +348,41 @@ export class InventoryRepository {
     const r = rows[0]
     return r ? { id: Number(r.id), inventoryId: r.inventory_id === null ? null : Number(r.inventory_id) } : null
   }
+
+  /**
+   * Daftar perangkat ACS (onu_devices) yang BELUM tertaut ke inventaris mana pun.
+   * Dipakai panel "Perangkat belum tertaut" & dropdown form Tambah/Tautkan.
+   */
+  async listUnlinkedDevices(limit = 50): Promise<
+    Array<{
+      id: number
+      genieacsDeviceId: string
+      serialNumber: string | null
+      manufacturer: string | null
+      model: string | null
+      onlineStatus: OnlineStatus
+      lastInformAt: Date | null
+      lastSyncedAt: Date | null
+    }>
+  > {
+    const [rows] = await this.db.query<RowDataPacket[]>(
+      `SELECT id, genieacs_device_id, serial_number, manufacturer, model,
+              online_status, last_inform_at, last_synced_at
+         FROM onu_devices
+        WHERE inventory_id IS NULL
+        ORDER BY last_synced_at DESC, id DESC
+        LIMIT ?`,
+      [limit],
+    )
+    return rows.map((r) => ({
+      id: Number(r.id),
+      genieacsDeviceId: String(r.genieacs_device_id),
+      serialNumber: (r.serial_number as string | null) ?? null,
+      manufacturer: (r.manufacturer as string | null) ?? null,
+      model: (r.model as string | null) ?? null,
+      onlineStatus: (r.online_status as OnlineStatus) ?? 'unknown',
+      lastInformAt: (r.last_inform_at as Date | null) ?? null,
+      lastSyncedAt: (r.last_synced_at as Date | null) ?? null,
+    }))
+  }
 }

@@ -15,6 +15,7 @@ export const inventoryKeys = {
   detail: (uuid: string) => ['inventory', 'detail', uuid] as const,
   map: ['inventory', 'map'] as const,
   facets: ['inventory', 'facets'] as const,
+  acsUnlinked: ['inventory', 'acs-unlinked'] as const,
 }
 
 export interface InventoryListParams {
@@ -49,6 +50,28 @@ export const fetchInventoryMap = () =>
 
 export const fetchInventoryFacets = () =>
   api<{ manufacturers: string[]; models: string[] }>('/inventory/facets')
+
+/** Perangkat ACS (hasil sync) yang belum tertaut ke record inventaris. */
+export interface AcsUnlinkedDevice {
+  id: number
+  genieacsDeviceId: string
+  serialNumber: string | null
+  manufacturer: string | null
+  model: string | null
+  onlineStatus: 'online' | 'offline' | 'unknown'
+  lastInformAt: string | null
+  lastSyncedAt: string | null
+}
+
+export const fetchAcsUnlinkedDevices = () =>
+  api<{ items: AcsUnlinkedDevice[] }>('/inventory/acs-unlinked')
+
+/** Buat inventaris draft langsung tertaut ke device ACS (dari panel belum tertaut). */
+export const linkInventoryToDevice = (genieacsDeviceId: string, name: string) =>
+  api<InventoryDetailDTO>('/inventory', {
+    method: 'POST',
+    body: { name, genieacsDeviceId },
+  })
 
 export const createInventory = (input: InventoryCreateInput) =>
   api<InventoryDetailDTO>('/inventory', { method: 'POST', body: input })

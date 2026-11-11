@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import type { InventoryDetailDTO } from '@amo/shared'
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ApiError } from '@/lib/api'
-import { createInventory, inventoryKeys, updateInventory } from './inventory.api'
+import { createInventory, fetchAcsUnlinkedDevices, inventoryKeys, updateInventory } from './inventory.api'
 import {
   emptyInventoryForm,
   inventoryFormSchema,
@@ -43,6 +43,13 @@ export function InventoryFormDialog({
   const form = useForm<InventoryFormValues, unknown, InventoryFormOutput>({
     resolver: zodResolver(inventoryFormSchema),
     defaultValues: emptyInventoryForm,
+  })
+
+  // Daftar device ACS belum tertaut — untuk dropdown penautan cepat (mode create).
+  const unlinked = useQuery({
+    queryKey: inventoryKeys.acsUnlinked,
+    queryFn: fetchAcsUnlinkedDevices,
+    enabled: open && !isEdit,
   })
 
   // Isi ulang form setiap kali dialog dibuka untuk perangkat berbeda.
@@ -196,14 +203,41 @@ export function InventoryFormDialog({
 
             {!isEdit && (
               <FormItem className="sm:col-span-2">
-                <FormLabel htmlFor="genieacsDeviceId">ID perangkat GenieACS (opsional)</FormLabel>
-                <Input
-                  id="genieacsDeviceId"
-                  placeholder="00259E-HG8245H-HWTC91B2401"
-                  {...form.register('genieacsDeviceId')}
-                />
+                <FormLabel>Tautkan ke perangkat GenieACS (opsional)</FormLabel>
+                <Select
+                  value={form.watch('genieacsDeviceId') || undefined}
+                  onValueChange={(v) => {
+                    form.setValue('genieacsDeviceId', v)
+                    // Prefill serial/vendor/model dari device terpilih agar konsisten.
+                    const d = unlinked.data?.items.find((x) => x.genieacsDeviceId === v)
+                    if (d) {
+                      if (!form.getValues('serialNumber') && d.serialNumber) form.setValue('serialNumber', d.serialNumber)
+                      if (!form.getValues('manufacturer') && d.manufacturer) form.setValue('manufacturer', d.manufacturer)
+                      if (!form.getValues('model') && d.model) form.setValue('model', d.model)
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={unlinked.isPending ? 'Memuat…' : '— Tanpa penautan —'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unlinked.data?.items.length ? (
+                      unlinked.data.items.map((d) => (
+                        <SelectItem key={d.genieacsDeviceId} value={d.genieacsDeviceId}>
+                          {d.genieacsDeviceId}
+                          {d.serialNumber ? ` · ${d.serialNumber}` : ''}
+                          {d.model ? ` · ${d.model}` : ''}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        Semua perangkat hasil sync sudah tertaut.
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
-                  Isi bila perangkat sudah tersinkron dari GenieACS dan ingin langsung ditautkan.
+                  Pilih perangkat hasil sinkronisasi GenieACS untuk langsung menautkannya ke record ini.
                 </p>
                 <FormMessage>{errors.genieacsDeviceId?.message}</FormMessage>
               </FormItem>

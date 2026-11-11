@@ -1,4 +1,5 @@
 import fp from 'fastify-plugin'
+import { SettingsRepository } from '../settings/settings.repository'
 import { SyncRepository } from './sync.repository'
 import { SyncService } from './sync.service'
 
@@ -19,7 +20,12 @@ declare module 'fastify' {
  */
 export default fp(
   async (app) => {
-    const service = new SyncService(new SyncRepository(app.db), app.config, app.log)
+    const service = new SyncService(
+      new SyncRepository(app.db),
+      app.config,
+      app.log,
+      new SettingsRepository(app.db), // untuk membaca setting sync.autoCreateInventory
+    )
     app.decorate('sync', service)
 
     if (app.config.NODE_ENV === 'test') return

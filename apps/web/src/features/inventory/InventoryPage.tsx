@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
   Filter,
+  Link2,
   Plus,
   Router,
   Search,
   X,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,7 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StatusBadge } from '@/components/StatusBadge'
 import { useAuth } from '@/features/auth/auth-context'
 import { formatRelative } from '@/lib/format'
-import { fetchInventory, fetchInventoryFacets, inventoryKeys, type InventoryListParams } from './inventory.api'
+import { fetchInventory, fetchInventoryFacets, fetchAcsUnlinkedDevices, inventoryKeys, linkInventoryToDevice, type InventoryListParams } from './inventory.api'
 import { InventoryFormDialog } from './InventoryFormDialog'
 
 const PAGE_SIZE = 25
@@ -63,6 +65,25 @@ export default function InventoryPage() {
     placeholderData: keepPreviousData,
   })
   const facets = useQuery({ queryKey: inventoryKeys.facets, queryFn: fetchInventoryFacets, staleTime: 5 * 60_000 })
+
+  // Panel "Perangkat ACS belum tertaut" — hanya untuk yang boleh menulis.
+  const queryClient = useQueryClient()
+  const canWrite = can('inventory.write')
+  const unlinked = useQuery({
+    queryKey: inventoryKeys.acsUnlinked,
+    queryFn: fetchAcsUnlinkedDevices,
+    enabled: canWrite,
+    refetchInterval: 60_000,
+  })
+  const quickLink = useMutation({
+    mutationFn: (d: { genieacsDeviceId: string; name: string }) => linkInventoryToDevice(d.genieacsDeviceId, d.name),
+    onSuccess: (created) => {
+      toast.success(`Perangkat "${created.name}" ditautkan ke inventaris.`)
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Gagal menautkan perangkat.'),
+  })
 
   /** Ubah satu parameter filter; reset ke halaman 1 kecuali yang diubah adalah `page`. */
   const setParam = (key: string, value: string | undefined) => {
@@ -205,6 +226,56 @@ export default function InventoryPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Panel: perangkat hasil sync yang belum tertaut (PRD §3.4) */}
+      {canWrite && (unlinked.data?.items.length ?? 0) > 0 && (
+        <Card>
+          <CardContent className="grid gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Link2 className="size-4" aria-hidden />
+                Perangkat ACS belum tertaut
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{unlinked.data!.items.length}</span>
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Hasil sinkronisasi GenieACS yang belum punya record inventaris. Tautkan cepat atau lengkapi lewat form.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              {unlinked.data!.items.map((d) => (
+                <div
+                  key={d.genieacsDeviceId}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate font-mono text-xs font-medium">{d.genieacsDeviceId}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {[d.serialNumber, d.manufacturer, d.model].filter(Boolean).join(' · ') || 'Tanpa serial/model'}
+                      {' · '}
+                      <span className={d.onlineStatus === 'online' ? 'text-status-online' : 'text-status-offline'}>
+                        {d.onlineStatus}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={quickLink.isPending}
+                    onClick={() =>
+                      quickLink.mutate({
+                        genieacsDeviceId: d.genieacsDeviceId,
+                        name: d.serialNumber ?? d.model ?? d.genieacsDeviceId,
+                      })
+                    }
+                  >
+                    <Plus aria-hidden /> Tautkan cepat
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {list.isError && (
         <Alert variant="destructive">

@@ -155,6 +155,49 @@ export class SyncRepository {
     )
   }
 
+  /**
+   * AUTO-CREATE inventaris draft untuk device yang belum tertaut (fitur baru).
+   *
+   * ATOMIK & idempoten:
+   *  - `INSERT ... SELECT ... WHERE d.inventory_id IS NULL` → bila dua sync bersamaan,
+   *    hanya satu yang berhasil membuat baris (yang lain melihat inventory_id terisi).
+   *  - Serial duplikat dengan inventaris lain → UNIQUE KEY uq_onu_serial menolak INSERT;
+   *    ditangkap dan dianggap "sudah ada" (device bisa ditautkan manual nanti).
+   *  - Setelah insert, `onu_devices.inventory_id` diisi agar sync berikutnya tidak
+   *    membuat draft lagi.
+   */
+  async createDraftInventoryIfUnlinked(
+    deviceId: number,
+    draft: {
+      name: string
+      serialNumber: string | null
+      manufacturer: string | null
+      model: string | null
+      uuid: string
+      createdAt: Date
+    },
+  ): Promise<{ inventoryId: number; name: string } | null> {
+    try {
+      const [res] = await this.db.query<ResultSetHeader>(
+        `INSERT INTO onu_inventory
+           (uuid, name, serial_number, manufacturer, model, auto_created, source_device_id, created_at)
+         SELECT ?, ?, ?, ?, ?, 1, d.id, UTC_TIMESTAMP()
+           FROM onu_devices d
+          WHERE d.id = ? AND d.inventory_id IS NULL`,
+        [draft.uuid, draft.name, draft.serialNumber, draft.manufacturer, draft.model, deviceId],
+      )
+      if (res.affectedRows === 0) return null // sudah tertaut (race) → tidak apa-apa
+
+      const inventoryId = res.insertId
+      await this.db.query('UPDATE onu_devices SET inventory_id = ? WHERE id = ?', [inventoryId, deviceId])
+      return { inventoryId, name: draft.name }
+    } catch (err) {
+      // ER_DUP_ENTRY (1062): serial sudah terdaftar di inventaris lain → biarkan penautan manual.
+      if ((err as { code?: string }).code === 'ER_DUP_ENTRY') return null
+      throw err
+    }
+  }
+
   async listRuns(limit: number): Promise<SyncRunRow[]> {
     const [rows] = await this.db.query<RunDbRow[]>(
       `SELECT r.id, r.trigger_type, r.triggered_by, u.name AS triggered_by_name, r.started_at,

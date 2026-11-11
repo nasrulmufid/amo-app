@@ -29,6 +29,7 @@ const SettingsResponse = Type.Object({
     syncIntervalSeconds: Type.Integer(),
     onlineThresholdSeconds: Type.Integer(),
     syncEnabled: Type.Boolean(),
+    autoCreateInventory: Type.Boolean(),
     appName: Type.String(),
     auditRetentionDays: Type.Integer(),
   }),

@@ -255,6 +255,8 @@ export interface AppSettingsDTO {
     syncIntervalSeconds: number
     onlineThresholdSeconds: number
     syncEnabled: boolean
+    /** true = sync otomatis membuat record inventaris draft untuk device baru. */
+    autoCreateInventory: boolean
     appName: string
     auditRetentionDays: number
   }
@@ -264,6 +266,18 @@ export interface AppSettingsDTO {
     allowedSchemes: RemoteScheme[]
     allowedCidrs: string[]
   }
+}
+
+/** Perangkat ACS (onu_devices) yang belum tertaut ke record inventaris. */
+export interface UnlinkedDeviceDTO {
+  id: number
+  genieacsDeviceId: string
+  serialNumber: string | null
+  manufacturer: string | null
+  model: string | null
+  onlineStatus: OnlineStatus
+  lastInformAt: string | null
+  lastSyncedAt: string | null
 }
 
 export interface DeviceParameterMapDTO {

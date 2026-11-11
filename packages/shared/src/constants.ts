@@ -90,6 +90,7 @@ export const SETTING_KEYS = [
   'sync.intervalSeconds',
   'sync.onlineThresholdSeconds',
   'sync.enabled',
+  'sync.autoCreateInventory',
   'ui.appName',
   'audit.retentionDays',
 ] as const

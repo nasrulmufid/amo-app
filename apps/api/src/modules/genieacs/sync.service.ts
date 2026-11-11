@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto'
 import type { FastifyBaseLogger } from 'fastify'
 import type { SyncRunDTO, SyncRunStatus } from '@amo/shared'
 import type { Env } from '../../config/env'
 import { GenieAcsClient, GenieAcsError, type GenieDevice } from './genieacs.client'
 import { deriveOnlineStatus, normalizeDevice, PARAM_PATHS } from './genieacs.mapper'
 import type { SyncRepository, SyncRunRow } from './sync.repository'
+import type { SettingsRepository } from '../settings/settings.repository'
 
 /**
  * Sinkronisasi GenieACS (PRD §8.4, §11).
@@ -45,6 +47,8 @@ export class SyncService {
     private readonly repo: SyncRepository,
     private readonly env: Env,
     private readonly log: FastifyBaseLogger,
+    /** Bila disuntikkan → aktifkan auto-create inventaris (setting sync.autoCreateInventory). */
+    private readonly settings?: SettingsRepository,
   ) {
     this.client = new GenieAcsClient(env)
   }
@@ -92,6 +96,7 @@ export class SyncService {
             syncError: null,
           })
           linked += await this.repo.autolinkBySerial(deviceId, normalized.serialNumber)
+          await this.autoCreateInventory(deviceId, normalized, now)
           success++
         } catch (err) {
           failed++
@@ -168,6 +173,49 @@ export class SyncService {
 
   async ping() {
     return this.client.ping()
+  }
+
+  /**
+   * AUTO-CREATE inventaris draft (fitur baru, setting `sync.autoCreateInventory`).
+   *
+   * Bila device ACS belum tertaut ke inventaris mana pun, buat record `onu_inventory`
+   * draft + tautkan. Nama draft dipilih dari serial/model/device-id (tidak pernah kosong).
+   * Metadata manual (lokasi, koordinat, catatan) dibiarkan NULL → admin yang melengkapi.
+   * Idempoten: hanya jalan bila `inventory_id` masih NULL; duplikat serial ditangani
+   * dengan membiarkan device tetap tak tertaut (autolink manual yang urus nanti).
+   */
+  private async autoCreateInventory(
+    deviceId: number,
+    normalized: ReturnType<typeof normalizeDevice>,
+    now: Date,
+  ): Promise<void> {
+    if (!this.settings) return
+    let enabled: boolean
+    try {
+      const values = await this.settings.getValues()
+      enabled = typeof values['sync.autoCreateInventory'] === 'boolean'
+        ? (values['sync.autoCreateInventory'] as boolean)
+        : true // default: AKTIF (sesuai effective default di SettingsService)
+    } catch (err) {
+      this.log.warn({ err }, 'gagal membaca setting autoCreateInventory — lewati auto-create')
+      return
+    }
+    if (!enabled) return
+
+    const created = await this.repo.createDraftInventoryIfUnlinked(
+      deviceId,
+      {
+        name: normalized.serialNumber ?? normalized.model ?? normalized.genieDeviceId,
+        serialNumber: normalized.serialNumber,
+        manufacturer: normalized.manufacturer,
+        model: normalized.model,
+        uuid: randomUUID(),
+        createdAt: now,
+      },
+    )
+    if (created) {
+      this.log.info({ deviceId, name: created.name }, 'inventaris draft dibuat otomatis dari sync')
+    }
   }
 }
 

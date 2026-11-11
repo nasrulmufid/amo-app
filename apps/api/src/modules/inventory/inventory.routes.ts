@@ -1,5 +1,6 @@
 import { Type } from '@sinclair/typebox'
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
+import { ONLINE_STATUSES, type OnlineStatus } from '@amo/shared'
 import { ok } from '../../common/http'
 import { CommonErrors, Envelope } from '../../common/schemas'
 import { InventoryRepository } from './inventory.repository'
@@ -67,6 +68,39 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
       },
     },
     async (request) => ok(request, await service.facets()),
+  )
+
+  // Rute statis: DAFTARKAN SEBELUM /:uuid agar tidak tertelan param.
+  app.get(
+    '/acs-unlinked',
+    {
+      onRequest: read,
+      schema: {
+        tags: ['inventory'],
+        summary: 'Perangkat ACS (hasil sync) yang belum tertaut ke inventaris',
+        response: {
+          200: Envelope(
+            Type.Object({
+              items: Type.Array(
+                Type.Object({
+                  id: Type.Integer(),
+                  genieacsDeviceId: Type.String(),
+                  serialNumber: Type.Union([Type.String(), Type.Null()]),
+                  manufacturer: Type.Union([Type.String(), Type.Null()]),
+                  model: Type.Union([Type.String(), Type.Null()]),
+                  onlineStatus: Type.Unsafe<OnlineStatus>(Type.String({ enum: [...ONLINE_STATUSES] })),
+                  lastInformAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
+                  lastSyncedAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
+                }),
+              ),
+            }),
+          ),
+          401: CommonErrors[401],
+          403: CommonErrors[403],
+        },
+      },
+    },
+    async (request) => ok(request, await service.listUnlinkedDevices()),
   )
 
   app.post(

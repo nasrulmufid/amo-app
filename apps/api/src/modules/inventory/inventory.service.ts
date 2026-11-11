@@ -69,6 +69,23 @@ export class InventoryService {
     return this.repo.listFacets()
   }
 
+  /** Daftar perangkat ACS yang belum tertaut ke inventaris (panel & dropdown form). */
+  async listUnlinkedDevices() {
+    const devices = await this.repo.listUnlinkedDevices(100)
+    return {
+      items: devices.map((d) => ({
+        id: d.id,
+        genieacsDeviceId: d.genieacsDeviceId,
+        serialNumber: d.serialNumber,
+        manufacturer: d.manufacturer,
+        model: d.model,
+        onlineStatus: d.onlineStatus,
+        lastInformAt: d.lastInformAt?.toISOString() ?? null,
+        lastSyncedAt: d.lastSyncedAt?.toISOString() ?? null,
+      })),
+    }
+  }
+
   async getByUuid(uuid: string): Promise<InventoryDetailDTO> {
     const row = await this.repo.findByUuid(uuid)
     if (!row) throw Errors.notFound('ONU')

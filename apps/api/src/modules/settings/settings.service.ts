@@ -30,6 +30,7 @@ export class SettingsService {
         syncIntervalSeconds: this.number(values['sync.intervalSeconds'], this.env.GENIEACS_SYNC_INTERVAL_SECONDS),
         onlineThresholdSeconds: this.number(values['sync.onlineThresholdSeconds'], this.env.ONLINE_THRESHOLD_SECONDS),
         syncEnabled: this.boolean(values['sync.enabled'], true),
+        autoCreateInventory: this.boolean(values['sync.autoCreateInventory'], true),
         appName: this.string(values['ui.appName'], DEFAULTS['ui.appName']),
         auditRetentionDays: this.number(values['audit.retentionDays'], DEFAULTS['audit.retentionDays']),
       },
@@ -63,6 +64,11 @@ export class SettingsService {
         break
       case 'sync.enabled':
         if (typeof value !== 'boolean') throw Errors.validation('sync.enabled harus boolean.')
+        break
+      case 'sync.autoCreateInventory':
+        if (typeof value !== 'boolean') {
+          throw Errors.validation('sync.autoCreateInventory harus boolean.')
+        }
         break
       case 'ui.appName':
         if (typeof value !== 'string' || value.trim() === '' || value.length > 60) {
