@@ -1,3 +1,4 @@
+import { useRef, type ComponentProps } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ExternalLink, Loader2 } from 'lucide-react'
@@ -14,15 +15,35 @@ import { openRemoteSession } from './remote.api'
  * - Dibuka di tab baru dengan `noopener,noreferrer` agar halaman perangkat tidak
  *   dapat mengakses `window.opener` aplikasi AMO.
  */
-export function RemoteButton({ uuid, disabled, disabledReason }: { uuid: string; disabled?: boolean; disabledReason?: string }) {
+export function RemoteButton({
+  uuid,
+  disabled,
+  disabledReason,
+  size,
+  className,
+}: {
+  uuid: string
+  disabled?: boolean
+  disabledReason?: string
+  size?: ComponentProps<typeof Button>['size']
+  className?: string
+}) {
   const { can } = useAuth()
+  const remoteWindowRef = useRef<Window | null>(null)
   const mutation = useMutation({
     mutationFn: () => openRemoteSession(uuid),
     onSuccess: (session) => {
-      const win = window.open(session.url, '_blank', 'noopener,noreferrer')
-      if (!win) toast.error('Popup diblokir browser. Izinkan popup untuk membuka remote.')
+      const win = remoteWindowRef.current
+      remoteWindowRef.current = null
+      if (!win || win.closed) {
+        toast.error('Jendela remote ditutup sebelum perangkat siap dibuka.')
+        return
+      }
+      win.location.replace(session.url)
     },
     onError: (err) => {
+      remoteWindowRef.current?.close()
+      remoteWindowRef.current = null
       if (err instanceof ApiError) {
         if (err.code === 'REMOTE_TARGET_NOT_ALLOWED') {
           toast.error('Remote ditolak kebijakan server. Periksa management IP, port, dan allowlist jaringan.')
@@ -41,11 +62,25 @@ export function RemoteButton({ uuid, disabled, disabledReason }: { uuid: string;
 
   if (!can('remote.open')) return null
 
+  const handleClick = () => {
+    // Buka jendela sinkron dari aksi klik agar tidak diblokir browser setelah request API selesai.
+    const win = window.open('about:blank', '_blank')
+    if (!win) {
+      toast.error('Popup diblokir browser. Izinkan popup untuk membuka remote.')
+      return
+    }
+    win.opener = null
+    remoteWindowRef.current = win
+    mutation.mutate()
+  }
+
   return (
     <Button
-      onClick={() => mutation.mutate()}
+      onClick={handleClick}
       disabled={disabled || mutation.isPending}
       title={disabled ? disabledReason : undefined}
+      size={size}
+      className={className}
     >
       {mutation.isPending ? <Loader2 className="animate-spin" aria-hidden /> : <ExternalLink aria-hidden />}
       Buka Remote

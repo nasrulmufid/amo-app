@@ -143,3 +143,16 @@
     @apply font-sans;
   }
 }
+
+/* Popup MapLibre membungkus card shadcn; hilangkan chrome popup bawaan. */
+.amo-device-popup .maplibregl-popup-content {
+  padding: 0;
+  border-radius: var(--radius-xl);
+  background: transparent;
+  box-shadow: none;
+}
+
+.amo-device-popup .maplibregl-popup-tip {
+  border-top-color: var(--card);
+  border-bottom-color: var(--card);
+}
