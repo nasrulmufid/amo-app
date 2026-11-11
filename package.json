@@ -16,7 +16,7 @@
     "dev:api": "npm run dev -w @amo/api",
     "dev:web": "npm run dev -w @amo/web",
     "build": "npm run build -w @amo/api && npm run build -w @amo/web",
-    "start": "npm run build && npm run start:api, start:web",
+    "start": "npm run build && npm run start:api start:web",
     "start:api": "npm run start -w @amo/api",
     "start:web": "npm run preview -w @amo/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
