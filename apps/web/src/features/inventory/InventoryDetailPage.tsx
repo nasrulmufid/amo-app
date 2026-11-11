@@ -154,9 +154,8 @@ export default function InventoryDetailPage() {
           <CardContent>
             <dl className="divide-y">
               <Field label="Vendor / Model">{[data.manufacturer, data.model].filter(Boolean).join(' · ') || '—'}</Field>
-              <Field label="OUI / Product class">
-                {[data.oui, data.productClass].filter(Boolean).join(' · ') || '—'}
-              </Field>
+              <Field label="Product Class">{data.productClass ?? '—'}</Field>
+              <Field label="OUI">{data.oui ?? '—'}</Field>
               <Field label="Management IP">
                 <span className="font-mono">{data.managementIp ?? '—'}</span>
               </Field>
@@ -242,8 +241,8 @@ export default function InventoryDetailPage() {
             <TabsContent value="summary">
               <dl className="divide-y">
                 <Field label="DeviceID.SerialNumber">{data.serialNumber ?? '—'}</Field>
-                <Field label="DeviceInfo.Manufacturer">{data.manufacturer ?? '—'}</Field>
-                <Field label="DeviceInfo.ModelName">{data.model ?? '—'}</Field>
+                <Field label="DeviceID.Manufacturer">{data.manufacturer ?? '—'}</Field>
+                <Field label="DeviceID.ProductClass">{data.productClass ?? '—'}</Field>
                 <Field label="Management IP">
                   {data.managementIp ?? '—'} <span className="text-xs text-muted-foreground">(metadata AMO)</span>
                 </Field>
