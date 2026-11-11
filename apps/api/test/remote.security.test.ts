@@ -105,10 +105,10 @@ describe('normalisasi path', () => {
 })
 
 describe('sanitasi header', () => {
-  it('membuang cookie AMO, authorization, CSRF, dan header hop-by-hop', () => {
+  it('membuang cookie AMO dan header hop-by-hop, meneruskan CSRF perangkat', () => {
     const out = sanitizeRequestHeaders(
       {
-        cookie: 'amo_session=rahasia',
+        cookie: 'amo_session=rahasia; amo_remote_SESSION=abc',
         authorization: 'Bearer x',
         'x-csrf-token': 'abc',
         connection: 'keep-alive',
@@ -118,7 +118,7 @@ describe('sanitasi header', () => {
       },
       '172.2.1.3:80',
     )
-    expect(out).toEqual({ accept: 'text/html', host: '172.2.1.3:80' })
+    expect(out).toEqual({ accept: 'text/html', 'x-csrf-token': 'abc', cookie: 'SESSION=abc', host: '172.2.1.3:80' })
   })
 
   it('respons: membuang header hop-by-hop & header keamanan milik perangkat', () => {

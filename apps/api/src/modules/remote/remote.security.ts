@@ -190,9 +190,7 @@ const HOP_BY_HOP = new Set([
 const STRIPPED_REQUEST_HEADERS = new Set([
   ...HOP_BY_HOP,
   'host',
-  'cookie', // cookie AMO (amo_session) TIDAK boleh bocor ke perangkat
   'authorization',
-  'x-csrf-token',
   'x-forwarded-for',
   'x-forwarded-host',
   'x-forwarded-proto',
@@ -209,6 +207,15 @@ export function sanitizeRequestHeaders(
     if (value === undefined) continue
     const lower = name.toLowerCase()
     if (STRIPPED_REQUEST_HEADERS.has(lower)) continue
+    if (lower === 'cookie') {
+      const cookies = String(value)
+        .split(';')
+        .map((cookie) => cookie.trim())
+        .filter((cookie) => cookie.startsWith('amo_remote_'))
+        .map((cookie) => cookie.slice('amo_remote_'.length))
+      if (cookies.length > 0) out.cookie = cookies.join('; ')
+      continue
+    }
     out[lower] = value
   }
   out.host = targetHost
