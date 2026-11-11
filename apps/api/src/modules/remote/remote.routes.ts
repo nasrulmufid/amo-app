@@ -57,6 +57,12 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
     },
   })
 
+  // Form login perangkat (umumnya application/x-www-form-urlencoded) dan tipe
+  // media vendor lainnya harus diterima tanpa diparse agar body tetap bisa diproxy.
+  app.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, body, done) => {
+    done(null, body)
+  })
+
   // ── POST /api/v1/inventory/:uuid/remote-session ───────────────────────────
   app.post(
     `${API_PREFIX}/inventory/:uuid/remote-session`,

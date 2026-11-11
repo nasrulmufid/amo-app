@@ -220,6 +220,18 @@ describe.skipIf(!DB_URL)('inventaris, pengguna, audit, pengaturan & remote (MySQ
       })).json().data as { uuid: string }
       inventoryIds.push(await idOf(created.uuid))
 
+      // Form login ONU harus mencapai proxy (bukan ditolak Fastify sebagai 415).
+      // Target sengaja di luar allowlist test sehingga tidak ada koneksi perangkat.
+      const formLogin = await app.inject({
+        method: 'POST',
+        url: `/remote/${created.uuid}/login.cgi`,
+        cookies: s.cookies,
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        payload: 'username=test&password=test',
+      })
+      expect(formLogin.statusCode).toBe(403)
+      expect(formLogin.json().error.code).toBe('REMOTE_TARGET_NOT_ALLOWED')
+
       // REMOTE_ALLOWED_CIDRS kosong di env test → semua target ditolak.
       const denied = await post(`/api/v1/inventory/${created.uuid}/remote-session`, s)
       expect(denied.statusCode).toBe(403)
