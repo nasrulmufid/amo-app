@@ -78,3 +78,7 @@ export const createInventory = (input: InventoryCreateInput) =>
 
 export const updateInventory = (uuid: string, input: InventoryUpdateInput) =>
   api<InventoryDetailDTO>(`/inventory/${uuid}`, { method: 'PATCH', body: input })
+
+/** Hapus inventaris (soft-delete di server). Mengembalikan jumlah device ACS yang dilepas. */
+export const deleteInventory = (uuid: string) =>
+  api<{ uuid: string; unlinkedDevices: number }>(`/inventory/${uuid}`, { method: 'DELETE' })

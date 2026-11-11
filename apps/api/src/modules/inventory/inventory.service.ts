@@ -211,6 +211,19 @@ export class InventoryService {
     return this.toDetail(updated)
   }
 
+  /**
+   * Hapus inventaris (SOFT-DELETE, PRD §3.4): `is_active = 0` + lepas penautan
+   * device ACS. Data tidak pernah dihapus fisik agar riwayat audit tetap utuh.
+   * Device ACS yang tertaut menjadi "belum tertaut" lagi → sync berikutnya
+   * (bila auto-create aktif) akan membuat draft baru, atau admin menautkan manual.
+   */
+  async remove(uuid: string): Promise<{ uuid: string; unlinkedDevices: number }> {
+    const current = await this.repo.findByUuid(uuid)
+    if (!current) throw Errors.notFound('ONU')
+    const unlinkedDevices = await this.repo.softDelete(current.id)
+    return { uuid: current.uuid, unlinkedDevices }
+  }
+
   // ── Validasi ──────────────────────────────────────────────────────────────
 
   private validateCoordinates(

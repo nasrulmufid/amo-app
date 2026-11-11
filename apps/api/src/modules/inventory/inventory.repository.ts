@@ -340,6 +340,30 @@ export class InventoryRepository {
     return res.affectedRows > 0
   }
 
+  /**
+   * SOFT-DELETE inventaris (fitur hapus): nonaktifkan record dan lepas SEMUA
+   * penautan device ACS dalam satu transaksi. Mengembalikan jumlah device yang
+   * dilepas. Baris tetap ada (riwayat audit aman), cukup tidak ikut list aktif.
+   */
+  async softDelete(id: number): Promise<number> {
+    const conn = await this.db.getConnection()
+    try {
+      await conn.beginTransaction()
+      await conn.query('UPDATE onu_inventory SET is_active = 0 WHERE id = ?', [id])
+      const [res] = await conn.query<ResultSetHeader>(
+        'UPDATE onu_devices SET inventory_id = NULL WHERE inventory_id = ?',
+        [id],
+      )
+      await conn.commit()
+      return res.affectedRows
+    } catch (err) {
+      await conn.rollback()
+      throw err
+    } finally {
+      conn.release()
+    }
+  }
+
   async findDeviceByGenieId(genieacsDeviceId: string): Promise<{ id: number; inventoryId: number | null } | null> {
     const [rows] = await this.db.query<RowDataPacket[]>(
       'SELECT id, inventory_id FROM onu_devices WHERE genieacs_device_id = ? LIMIT 1',

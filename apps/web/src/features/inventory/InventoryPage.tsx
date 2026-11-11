@@ -11,6 +11,7 @@ import {
   Plus,
   Router,
   Search,
+  Trash2,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,8 +27,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StatusBadge } from '@/components/StatusBadge'
 import { useAuth } from '@/features/auth/auth-context'
 import { formatRelative } from '@/lib/format'
-import { fetchInventory, fetchInventoryFacets, fetchAcsUnlinkedDevices, inventoryKeys, linkInventoryToDevice, type InventoryListParams } from './inventory.api'
+import { fetchInventory, fetchInventoryFacets, fetchAcsUnlinkedDevices, inventoryKeys, linkInventoryToDevice, deleteInventory, type InventoryListParams } from './inventory.api'
 import { InventoryFormDialog } from './InventoryFormDialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const PAGE_SIZE = 25
 
@@ -83,6 +94,23 @@ export default function InventoryPage() {
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Gagal menautkan perangkat.'),
+  })
+
+  // ── Hapus ONU (soft-delete di server) ──
+  const [deleteTarget, setDeleteTarget] = useState<{ uuid: string; name: string } | null>(null)
+  const deleteMut = useMutation({
+    mutationFn: (uuid: string) => deleteInventory(uuid),
+    onSuccess: (res) => {
+      toast.success(
+        res.unlinkedDevices > 0
+          ? `Perangkat dihapus. ${res.unlinkedDevices} tautan ACS dilepas dari inventaris.`
+          : 'Perangkat dihapus dari inventaris.',
+      )
+      setDeleteTarget(null)
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Gagal menghapus perangkat.'),
   })
 
   /** Ubah satu parameter filter; reset ke halaman 1 kecuali yang diubah adalah `page`. */
@@ -356,11 +384,24 @@ export default function InventoryPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatRelative(d.lastSyncedAt)}</TableCell>
                     <TableCell className="text-right">
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/inventory/${d.uuid}`}>
-                          Detail <ExternalLink aria-hidden />
-                        </Link>
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/inventory/${d.uuid}`}>
+                            Detail <ExternalLink aria-hidden />
+                          </Link>
+                        </Button>
+                        {canWrite && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            aria-label={`Hapus ${d.name}`}
+                            onClick={() => setDeleteTarget({ uuid: d.uuid, name: d.name })}
+                          >
+                            <Trash2 aria-hidden />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -401,6 +442,33 @@ export default function InventoryPage() {
       </Card>
 
       <InventoryFormDialog open={formOpen} onOpenChange={setFormOpen} />
+
+      {/* Konfirmasi hapus: soft-delete di server, data tidak hilang fisik. */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus perangkat "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Record dinonaktifkan (tidak dihapus fisik) dan penautan ke GenieACS dilepas.
+              Perangkat bisa muncul kembali sebagai draft bila sinkronisasi otomatis aktif,
+              atau ditambahkan lagi secara manual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleteMut.isPending}
+              onClick={(e) => {
+                e.preventDefault()
+                if (deleteTarget) deleteMut.mutate(deleteTarget.uuid)
+              }}
+            >
+              {deleteMut.isPending ? 'Menghapus…' : 'Hapus'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

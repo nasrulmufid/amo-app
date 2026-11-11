@@ -205,6 +205,39 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
       return ok(request, updated)
     },
   )
+
+  app.delete(
+    '/:uuid',
+    {
+      onRequest: write,
+      schema: {
+        tags: ['inventory'],
+        summary: 'Hapus inventaris (soft-delete; device ACS dilepas dari penautan)',
+        params: InventoryUuidParams,
+        response: {
+          200: Envelope(
+            Type.Object({
+              uuid: Type.String(),
+              unlinkedDevices: Type.Integer(),
+            }),
+          ),
+          401: CommonErrors[401],
+          403: CommonErrors[403],
+          404: CommonErrors[404],
+        },
+      },
+    },
+    async (request) => {
+      const result = await service.remove(request.params.uuid)
+      await app.audit.record(request, {
+        action: 'inventory.delete',
+        resourceType: 'onu_inventory',
+        resourceId: result.uuid,
+        details: { unlinkedDevices: result.unlinkedDevices },
+      })
+      return ok(request, result)
+    },
+  )
 }
 
 export default routes
