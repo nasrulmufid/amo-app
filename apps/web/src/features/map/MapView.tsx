@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
-import { AttributionControl, LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup, setWorkerUrl } from 'maplibre-gl'
+import { AttributionControl, FullscreenControl, LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup, setWorkerUrl } from 'maplibre-gl'
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { DeviceDisplayStatus, InventoryMapPointDTO } from '@amo/shared'
@@ -74,6 +74,7 @@ export default function MapView({ points, focus }: { points: InventoryMapPointDT
       attributionControl: false,
     })
     map.addControl(new NavigationControl(), 'top-left')
+    map.addControl(new FullscreenControl(), 'top-left')
     map.addControl(new AttributionControl({ compact: true }), 'top-right')
     mapRef.current = map
     map.once('load', () => setMapReady(true))
