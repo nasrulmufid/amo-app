@@ -57,7 +57,7 @@ export default function LoginPage() {
     <main className="grid min-h-screen place-items-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <div className="mb-2 grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground">
+          <div className="mx-auto mb-2 grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground">
             <Router className="size-6" aria-hidden />
           </div>
           <CardTitle className="text-xl">AMO</CardTitle>
