@@ -1,29 +1,18 @@
-import { useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import { useEffect, useRef, useState } from 'react'
+import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup, setWorkerUrl } from 'maplibre-gl'
+import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import type { InventoryMapPointDTO } from '@amo/shared'
-import { StatusBadge } from '@/components/StatusBadge'
+
+setWorkerUrl(mapLibreWorkerUrl)
 
 /**
  * Peta perangkat (PRD §5.4).
  *
- * - Provider: OpenStreetMap (Leaflet) — tanpa API key, sesuai PRD §17 "provider dipilih saat implementasi".
+ * - Provider: OpenFreeMap / MapLibre GL — tanpa API key; data peta OpenStreetMap.
  * - Hanya perangkat dengan koordinat VALID yang diberi pin (PRD §3.4).
  * - Warna pin mengikuti status; legenda selalu disertai teks (bukan warna saja).
  */
-
-/** Pin SVG sederhana (menghindari masalah aset default Leaflet di bundler). */
-function pinIcon(color: string): L.DivIcon {
-  return L.divIcon({
-    className: 'amo-pin',
-    html: `<span style="display:block;width:16px;height:16px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,.45)"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-    popupAnchor: [0, -10],
-  })
-}
 
 const STATUS_COLOR: Record<string, string> = {
   online: '#16845b',
@@ -33,55 +22,87 @@ const STATUS_COLOR: Record<string, string> = {
   sync_error: '#c23b45',
 }
 
-/** Sesuaikan viewport ke semua pin (atau ke satu perangkat bila `focus` diberikan). */
-function FitBounds({ points, focus }: { points: InventoryMapPointDTO[]; focus?: string }) {
-  const map = useMap()
-  useEffect(() => {
-    if (points.length === 0) return
-    const focused = focus ? points.find((p) => p.uuid === focus) : undefined
-    if (focused) {
-      map.setView([focused.latitude, focused.longitude], 15)
-      return
-    }
-    if (points.length === 1) {
-      const only = points[0]!
-      map.setView([only.latitude, only.longitude], 13)
-      return
-    }
-    map.fitBounds(points.map((p) => [p.latitude, p.longitude] as [number, number]), { padding: [32, 32] })
-  }, [map, points, focus])
-  return null
-}
-
 export default function MapView({ points, focus }: { points: InventoryMapPointDTO[]; focus?: string }) {
-  const icons = useMemo(
-    () => Object.fromEntries(Object.entries(STATUS_COLOR).map(([k, v]) => [k, pinIcon(v)])),
-    [],
-  )
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<MapLibreMap | null>(null)
+  const markersRef = useRef<Marker[]>([])
+  const [mapReady, setMapReady] = useState(false)
   const center: [number, number] = points[0] ? [points[0].latitude, points[0].longitude] : [-2.99, 104.75]
 
+  useEffect(() => {
+    if (!containerRef.current) return
+    const map = new MapLibreMap({
+      container: containerRef.current,
+      style: 'https://tiles.openfreemap.org/styles/liberty',
+      center: [center[1], center[0]],
+      zoom: 12,
+      minZoom: 1,
+      maxZoom: 19,
+      attributionControl: { compact: true },
+    })
+    map.addControl(new NavigationControl(), 'top-left')
+    mapRef.current = map
+    map.once('load', () => setMapReady(true))
+
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove())
+      markersRef.current = []
+      mapRef.current = null
+      map.remove()
+      setMapReady(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    markersRef.current.forEach((marker) => marker.remove())
+    markersRef.current = points.map((point) => {
+      const popupContent = document.createElement('div')
+      popupContent.className = 'grid gap-1'
+
+      const link = document.createElement('a')
+      link.href = `/inventory/${encodeURIComponent(point.uuid)}`
+      link.className = 'font-semibold hover:underline'
+      link.textContent = point.name
+      popupContent.append(link)
+
+      const details = [
+        point.serialNumber ?? 'Serial belum ada',
+        [point.manufacturer, point.model].filter(Boolean).join(' ') || '—',
+        point.locationName ?? 'Lokasi belum diisi',
+        point.displayStatus.replaceAll('_', ' '),
+      ]
+      for (const text of details) {
+        const line = document.createElement('span')
+        line.className = 'text-xs'
+        line.textContent = text
+        popupContent.append(line)
+      }
+
+      return new Marker({ color: STATUS_COLOR[point.displayStatus] ?? STATUS_COLOR.unknown })
+        .setLngLat([point.longitude, point.latitude])
+        .setPopup(new Popup().setDOMContent(popupContent))
+        .addTo(map)
+    })
+
+    const focused = focus ? points.find((point) => point.uuid === focus) : undefined
+    if (focused) {
+      map.easeTo({ center: [focused.longitude, focused.latitude], zoom: 15 })
+    } else if (points.length === 1) {
+      const only = points[0]!
+      map.easeTo({ center: [only.longitude, only.latitude], zoom: 13 })
+    } else if (points.length > 1) {
+      const bounds = points.reduce(
+        (result, point) => result.extend([point.longitude, point.latitude]),
+        new LngLatBounds(),
+      )
+      map.fitBounds(bounds, { padding: 48, maxZoom: 13 })
+    }
+  }, [points, focus, mapReady])
+
   return (
-    <MapContainer center={center} zoom={12} className="h-[32rem] w-full rounded-xl border" scrollWheelZoom>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <FitBounds points={points} focus={focus} />
-      {points.map((p) => (
-        <Marker key={p.uuid} position={[p.latitude, p.longitude]} icon={icons[p.displayStatus] ?? icons.unknown}>
-          <Popup>
-            <div className="grid gap-1">
-              <Link to={`/inventory/${p.uuid}`} className="font-semibold hover:underline">
-                {p.name}
-              </Link>
-              <span className="text-xs text-muted-foreground">{p.serialNumber ?? 'Serial belum ada'}</span>
-              <span className="text-xs">{[p.manufacturer, p.model].filter(Boolean).join(' ') || '—'}</span>
-              <span className="text-xs">{p.locationName ?? 'Lokasi belum diisi'}</span>
-              <StatusBadge status={p.displayStatus} />
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <div ref={containerRef} className="h-[32rem] w-full rounded-xl border" aria-label="Peta lokasi perangkat" />
   )
 }
