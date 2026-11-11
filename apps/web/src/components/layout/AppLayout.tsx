@@ -86,9 +86,12 @@ export function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen md:grid md:grid-cols-[15rem_1fr]">
-      {/* Sidebar desktop */}
-      <aside className="sticky top-0 hidden h-screen flex-col gap-4 border-r border-sidebar-border bg-sidebar py-4 md:flex">
+    // GRIDLINES: baris = [konten, footer], kolom = [sidebar, konten].
+    // Footer diletakkan eksplisit di baris 2 kolom 2 (menyeberangi kedua kolom)
+    // agar selalu tampil di bawah konten — bukan tak sengaja "masuk" kolom sidebar.
+    <div className="grid min-h-screen grid-rows-[auto_1fr_auto] md:grid-cols-[15rem_1fr]">
+      {/* Sidebar desktop — membentangi baris 1 (konten) saja */}
+      <aside className="row-span-1 sticky top-0 hidden h-screen flex-col gap-4 border-r border-sidebar-border bg-sidebar py-4 md:flex">
         <div className="px-3">
           <Brand />
         </div>
@@ -123,10 +126,11 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="min-w-0 p-4 md:p-8">
+      <main className="min-w-0 p-4 md:p-8 md:col-start-2">
         <Outlet />
       </main>
-      <AppFooter />
+      {/* Footer: baris 2, menyeberangi kolom sidebar + konten */}
+      <AppFooter className="md:col-span-2" />
     </div>
   )
 }
