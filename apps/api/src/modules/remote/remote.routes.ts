@@ -45,7 +45,7 @@ const UPSTREAM_TIMEOUT_MS = 20_000
 
 const routes: FastifyPluginAsyncTypebox = async (app) => {
   const service = new RemoteService(new RemoteRepository(app.db), app.config)
-  const gate = [app.authenticate, app.requirePermission('remote.open')]
+  const gate = [app.authenticateSession, app.requirePermission('remote.open')]
 
   // Proxy memakai undici (via @fastify/reply-from). Redirect TIDAK diikuti otomatis:
   // kita rewrite/blokir sendiri agar tidak keluar dari target.

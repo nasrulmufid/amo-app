@@ -21,6 +21,8 @@ declare module 'fastify' {
     sessions: SessionService
     /** Hook onRequest: wajib sesi valid (+ CSRF untuk method yang mengubah state). */
     authenticate: onRequestAsyncHookHandler
+    /** Wajib sesi + izin, tanpa CSRF AMO; dipakai reverse proxy remote yang punya CSRF sendiri. */
+    authenticateSession: onRequestAsyncHookHandler
     /** Hook onRequest: wajib punya izin tertentu. Pasang SETELAH `authenticate`. */
     requirePermission: (permission: Permission) => onRequestAsyncHookHandler
   }
@@ -66,6 +68,17 @@ export default fp(
       }
 
       if (!SAFE_METHODS.has(request.method)) assertCsrf(request, ctx, allowedOrigin)
+      request.auth = ctx
+    })
+
+    app.decorate('authenticateSession', async (request, reply) => {
+      const token = request.cookies[SESSION_COOKIE_NAME]
+      if (!token) throw Errors.authRequired()
+      const ctx = await sessions.resolve(token)
+      if (!ctx) {
+        reply.clearCookie(SESSION_COOKIE_NAME, { path: '/' })
+        throw Errors.authRequired()
+      }
       request.auth = ctx
     })
 
