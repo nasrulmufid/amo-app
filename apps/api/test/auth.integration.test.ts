@@ -126,7 +126,7 @@ describe.skipIf(!DB_URL)('alur sesi & RBAC (MySQL nyata)', () => {
       expect((await call({})).json().error.code).toBe('CSRF_INVALID')
       expect((await call({ [CSRF_HEADER_NAME]: 'x'.repeat(64) })).statusCode).toBe(403)
       expect((await call({ [CSRF_HEADER_NAME]: s.csrf, origin: 'https://evil.example' })).statusCode).toBe(403)
-      expect((await call({ [CSRF_HEADER_NAME]: s.csrf, origin: 'http://localhost:5173' })).statusCode).toBe(200)
+      expect((await call({ [CSRF_HEADER_NAME]: s.csrf, origin: 'http://localhost:14500' })).statusCode).toBe(200)
     })
 
     it('refresh merotasi token: cookie lama langsung tidak berlaku', async () => {

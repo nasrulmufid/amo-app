@@ -28,9 +28,9 @@ COPY database database
 ENV MIGRATIONS_DIR=/app/database/migrations
 # Jangan jalan sebagai root.
 USER node
-EXPOSE 3000
+EXPOSE 4500
 WORKDIR /app/apps/api
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:4500/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 # Migrasi dijalankan dulu (aman: memakai GET_LOCK + idempoten), baru API start.
 CMD ["sh", "-c", "node dist/scripts/migrate.js && node dist/server.js"]

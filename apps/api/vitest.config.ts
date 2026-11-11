@@ -8,7 +8,7 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
-      APP_BASE_URL: 'http://localhost:5173',
+      APP_BASE_URL: 'http://localhost:14500',
       SESSION_SECRET: 'test-secret-test-secret-test-secret-123456',
       DATABASE_URL: 'mysql://test:test@127.0.0.1:3306/amo_test',
     },

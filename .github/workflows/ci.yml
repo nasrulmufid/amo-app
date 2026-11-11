@@ -21,7 +21,7 @@ jobs:
       # Menjalankan integration test (test/auth.integration.test.ts) terhadap MySQL service di atas.
       DATABASE_URL: mysql://root:root@127.0.0.1:3306/amo
       INTEGRATION_DATABASE_URL: mysql://root:root@127.0.0.1:3306/amo
-      APP_BASE_URL: http://localhost:5173
+      APP_BASE_URL: http://localhost:14500
       SESSION_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-123
     steps:
       - uses: actions/checkout@v4

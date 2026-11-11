@@ -37,15 +37,15 @@ npm run docker:dev-db           # MySQL 8 lewat Docker (atau pakai MySQL Anda se
 npm run db:migrate              # terapkan skema (aman diulang)
 npm run db:seed                 # buat akun admin dari SEED_ADMIN_*
 
-npm run dev                     # API :3000  +  Web :5173
+npm run dev                     # API :4500  +  Web :14500
 ```
 
-Buka **http://localhost:5173** dan login dengan akun seed.
+Buka **http://localhost:14500** dan login dengan akun seed.
 
 > ⚠ **Akses web lewat host yang SAMA dengan `APP_BASE_URL`** (default `localhost`, bukan `127.0.0.1`).
 > Proteksi CSRF menolak request yang `Origin`-nya berbeda.
 
-Tautan berguna: Swagger UI `http://localhost:3000/docs` · health `http://localhost:3000/health`
+Tautan berguna: Swagger UI `http://localhost:4500/docs` · health `http://localhost:4500/health`
 
 ## Menjalankan mode produksi (tanpa Docker)
 
@@ -53,16 +53,16 @@ Satu proses Node menyajikan **API + frontend sekaligus** di satu port (pengganti
 
 ```bash
 npm run build        # build API (tsup) + Web (vite) — wajib sebelum start
-npm run start        # baca .env.production + .env → http://localhost:3000
+npm run start        # baca .env.production + .env → http://localhost:4500
 ```
 
 - Frontend dilayani Fastify dari `apps/web/dist` (`SERVE_WEB=true` di `.env.production`),
   jadi web & API **satu origin** — cookie sesi & CSRF berperilaku seperti di Docker/Nginx.
 - Secret (`SESSION_SECRET`, `DATABASE_URL`, `SEED_ADMIN_*`, dst.) tetap dibaca dari `.env`.
-- Aplikasi diakses lewat host yang sama dengan `APP_BASE_URL` (default `http://localhost:3000`).
+- Aplikasi diakses lewat host yang sama dengan `APP_BASE_URL` (default `http://localhost:4500`).
 - Untuk produksi publik: taruh Nginx/TLS di depan, set `TRUST_PROXY=true`, dan ganti
   `APP_BASE_URL` ke domain Anda — atau gunakan `npm run docker:up`.
-- Alternatif frontend saja: `npm run start:web` (vite preview :4173, tetap butuh API jalan).
+- Alternatif frontend saja: `npm run start:web` (vite preview :14500, tetap butuh API jalan).
 
 ## Perintah
 
@@ -72,8 +72,8 @@ npm run start        # baca .env.production + .env → http://localhost:3000
 | `npm run typecheck`                 | Type-check semua workspace                                                      |
 | `npm test`                          | Test API. Tambahkan `INTEGRATION_DATABASE_URL=mysql://…` untuk integration test |
 | `npm run build`                     | Build produksi API (tsup) & Web (Vite)                                          |
-| `npm run start`                     | **Produksi tanpa Docker**: API + frontend satu proses (:3000)                   |
-| `npm run start:web`                 | Preview frontend hasil build saja (vite preview :4173)                          |
+| `npm run start`                     | **Produksi tanpa Docker**: API + frontend satu proses (:4500)                   |
+| `npm run start:web`                 | Preview frontend hasil build saja (vite preview :14500)                          |
 | `npm run db:migrate` / `db:seed`    | Migrasi skema / akun admin awal                                                 |
 | `npm run openapi:export`            | Hasilkan `docs/openapi.yaml` dari schema route                                  |
 | `npm run docker:up` / `docker:down` | Stack penuh (MySQL + API + Nginx/Web)                                           |
