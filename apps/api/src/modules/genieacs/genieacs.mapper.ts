@@ -13,23 +13,26 @@ import type { GenieDevice } from './genieacs.client'
  */
 export const PARAM_PATHS = {
   serialNumber: [
+    '_deviceId._SerialNumber',
     'DeviceID.SerialNumber',
     'InternetGatewayDevice.DeviceInfo.SerialNumber',
     'Device.DeviceInfo.SerialNumber',
   ],
   manufacturer: [
+    '_deviceId._Manufacturer',
     'DeviceID.Manufacturer',
     'InternetGatewayDevice.DeviceInfo.Manufacturer',
     'Device.DeviceInfo.Manufacturer',
   ],
   model: [
+    '_deviceId._Manufacturer',
     'DeviceID.Manufacturer',
     'InternetGatewayDevice.DeviceInfo.ModelName',
     'Device.DeviceInfo.ModelName',
     'DeviceID.ProductClass', // fallback sesuai PRD: "Jika kosong, gunakan ProductClass"
   ],
-  productClass: ['DeviceID.ProductClass'],
-  oui: ['DeviceID.OUI'],
+  productClass: ['_deviceId._ProductClass', 'DeviceID.ProductClass'],
+  oui: ['_deviceId._OUI', 'DeviceID.OUI', 'InternetGatewayDevice.DeviceInfo.ManufacturerOUI'],
   // IP manajemen WAN/TR-069. "IPTR069" umum di firmware ZTE/Huawei; fallback ke
   // path standar TR-098/TR-181. Bisa ditimpa per model lewat device_parameter_map.
   managementIp: [

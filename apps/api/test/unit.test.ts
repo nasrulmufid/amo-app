@@ -93,6 +93,22 @@ describe('GenieACS mapper', () => {
     expect(n.managementIp).toBe('192.168.1.20')
     expect(n.lastInformAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z')
   })
+  it('membaca identitas GenieACS dari _deviceId', () => {
+    const n = normalizeDevice({
+      _id: '001141-XSF609-ZTEGCB961471',
+      _deviceId: {
+        _Manufacturer: 'ZTEG',
+        _OUI: '001141',
+        _ProductClass: 'XSF609',
+        _SerialNumber: 'ZTEGCB961471',
+      },
+    })
+    expect(n.serialNumber).toBe('ZTEGCB961471')
+    expect(n.manufacturer).toBe('ZTEG')
+    expect(n.model).toBe('ZTEG')
+    expect(n.productClass).toBe('XSF609')
+    expect(n.oui).toBe('001141')
+  })
   it('deriveOnlineStatus: unknown bila tak pernah inform; online/offline sesuai threshold', () => {
     const now = new Date('2026-10-18T10:10:00Z')
     expect(deriveOnlineStatus(null, 600, now)).toBe('unknown')
