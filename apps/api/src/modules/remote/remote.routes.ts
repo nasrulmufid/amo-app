@@ -157,6 +157,8 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
     const requestHeaders = sanitizeRequestHeaders(
       request.headers as Record<string, string | string[] | undefined>,
       hostHeader,
+      ctx.origin,
+      path,
     )
 
     // `reply.from` memakai `source` relatif terhadap `base`; query diteruskan apa adanya.

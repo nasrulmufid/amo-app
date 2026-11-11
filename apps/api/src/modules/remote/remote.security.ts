@@ -201,6 +201,8 @@ const STRIPPED_REQUEST_HEADERS = new Set([
 export function sanitizeRequestHeaders(
   headers: Record<string, string | string[] | undefined>,
   targetHost: string,
+  targetOrigin?: string,
+  targetPath?: string,
 ): Record<string, string | string[]> {
   const out: Record<string, string | string[]> = {}
   for (const [name, value] of Object.entries(headers)) {
@@ -216,9 +218,14 @@ export function sanitizeRequestHeaders(
       if (cookies.length > 0) out.cookie = cookies.join('; ')
       continue
     }
+    if (lower === 'origin' || lower === 'referer') continue
     out[lower] = value
   }
   out.host = targetHost
+  if (targetOrigin) {
+    out.origin = targetOrigin
+    if (targetPath) out.referer = `${targetOrigin}${targetPath}`
+  }
   return out
 }
 

@@ -112,13 +112,15 @@ describe('sanitasi header', () => {
         authorization: 'Bearer x',
         'x-csrf-token': 'abc',
         connection: 'keep-alive',
-        'x-forwarded-for': '1.2.3.4',
+          'x-forwarded-for': '1.2.3.4',
         accept: 'text/html',
         host: 'evil.example',
       },
       '172.2.1.3:80',
+      'http://172.2.1.3:80',
+      '/login',
     )
-    expect(out).toEqual({ accept: 'text/html', 'x-csrf-token': 'abc', cookie: 'SESSION=abc', host: '172.2.1.3:80' })
+    expect(out).toEqual({ accept: 'text/html', 'x-csrf-token': 'abc', cookie: 'SESSION=abc', host: '172.2.1.3:80', origin: 'http://172.2.1.3:80', referer: 'http://172.2.1.3:80/login' })
   })
 
   it('respons: membuang header hop-by-hop & header keamanan milik perangkat', () => {
