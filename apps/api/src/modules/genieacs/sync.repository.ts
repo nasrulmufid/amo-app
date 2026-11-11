@@ -16,6 +16,7 @@ export interface DeviceUpsert {
   serialNumber: string | null
   manufacturer: string | null
   model: string | null
+  managementIp: string | null
   lastInformAt: Date | null
   lastSyncedAt: Date
   onlineStatus: OnlineStatus
@@ -100,23 +101,25 @@ export class SyncRepository {
   async upsertDevice(d: DeviceUpsert): Promise<number> {
     await this.db.query(
       `INSERT INTO onu_devices
-         (genieacs_device_id, serial_number, manufacturer, model, last_inform_at, last_synced_at,
+         (genieacs_device_id, serial_number, manufacturer, model, management_ip, last_inform_at, last_synced_at,
           online_status, parameters_json, sync_error)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          serial_number   = VALUES(serial_number),
          manufacturer    = VALUES(manufacturer),
          model           = VALUES(model),
+         management_ip   = COALESCE(VALUES(management_ip), management_ip),
          last_inform_at  = VALUES(last_inform_at),
          last_synced_at  = VALUES(last_synced_at),
          online_status   = VALUES(online_status),
-         parameters_json = VALUES(parameters_json),
+         parameters_json = COALESCE(VALUES(parameters_json), parameters_json),
          sync_error      = VALUES(sync_error)`,
       [
         d.genieacsDeviceId,
         d.serialNumber,
         d.manufacturer,
         d.model,
+        d.managementIp,
         d.lastInformAt,
         d.lastSyncedAt,
         d.onlineStatus,
@@ -156,6 +159,25 @@ export class SyncRepository {
   }
 
   /**
+   * Isi metadata inventaris yang MASIH KOSONG dari data device ACS (fitur baru).
+   * Dipanggil setelah penautan (autolink/manual/quick-link) agar serial, vendor,
+   * model, dan management IP terisi otomatis — TANPA menimpa isi manual admin.
+   * `management_ip` inventaris hanya diisi bila kosong (manual tetap menang).
+   */
+  async fillInventoryFromDevice(deviceId: number): Promise<void> {
+    await this.db.query(
+      `UPDATE onu_inventory i
+         JOIN onu_devices d ON d.inventory_id = i.id
+          SET i.serial_number = COALESCE(i.serial_number, d.serial_number),
+              i.manufacturer  = COALESCE(i.manufacturer, d.manufacturer),
+              i.model         = COALESCE(i.model, d.model),
+              i.management_ip = COALESCE(i.management_ip, d.management_ip)
+        WHERE d.id = ?`,
+      [deviceId],
+    )
+  }
+
+  /**
    * AUTO-CREATE inventaris draft untuk device yang belum tertaut (fitur baru).
    *
    * ATOMIK & idempoten:
@@ -173,6 +195,7 @@ export class SyncRepository {
       serialNumber: string | null
       manufacturer: string | null
       model: string | null
+      managementIp: string | null
       uuid: string
       createdAt: Date
     },
@@ -180,8 +203,8 @@ export class SyncRepository {
     try {
       const [res] = await this.db.query<ResultSetHeader>(
         `INSERT INTO onu_inventory
-           (uuid, name, serial_number, manufacturer, model, auto_created, source_device_id, created_at)
-         SELECT ?, ?, ?, ?, ?, 1, d.id, UTC_TIMESTAMP()
+           (uuid, name, serial_number, manufacturer, model, management_ip, auto_created, source_device_id, created_at)
+         SELECT ?, ?, ?, ?, ?, d.management_ip, 1, d.id, UTC_TIMESTAMP()
            FROM onu_devices d
           WHERE d.id = ? AND d.inventory_id IS NULL`,
         [draft.uuid, draft.name, draft.serialNumber, draft.manufacturer, draft.model, deviceId],

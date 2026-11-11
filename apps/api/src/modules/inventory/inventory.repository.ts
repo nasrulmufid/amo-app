@@ -37,6 +37,7 @@ export interface InventoryRow {
   deviceSerialNumber: string | null
   deviceManufacturer: string | null
   deviceModel: string | null
+  deviceManagementIp: string | null
   lastInformAt: Date | null
   lastSyncedAt: Date | null
   onlineStatus: OnlineStatus
@@ -69,6 +70,7 @@ interface Row extends RowDataPacket {
   device_serial_number: string | null
   device_manufacturer: string | null
   device_model: string | null
+  device_management_ip: string | null
   last_inform_at: Date | null
   last_synced_at: Date | null
   online_status: OnlineStatus | null
@@ -76,12 +78,13 @@ interface Row extends RowDataPacket {
   parameters_json: unknown
 }
 
-const SELECT_COLUMNS = `
+  const SELECT_COLUMNS = `
   i.id, i.uuid, i.name, i.serial_number, i.oui, i.product_class, i.manufacturer, i.model,
   i.management_ip, i.remote_scheme, i.remote_port, i.location_name, i.address,
   i.latitude, i.longitude, i.notes, i.is_active, i.created_at, i.updated_at,
   d.id AS device_id, d.genieacs_device_id, d.serial_number AS device_serial_number,
   d.manufacturer AS device_manufacturer, d.model AS device_model,
+  d.management_ip AS device_management_ip,
   d.last_inform_at, d.last_synced_at, d.online_status, d.sync_error, d.parameters_json`
 
 const FROM = 'FROM onu_inventory i LEFT JOIN onu_devices d ON d.inventory_id = i.id'
@@ -111,6 +114,7 @@ const toRow = (r: Row): InventoryRow => ({
   deviceSerialNumber: r.device_serial_number,
   deviceManufacturer: r.device_manufacturer,
   deviceModel: r.device_model,
+  deviceManagementIp: r.device_management_ip,
   lastInformAt: r.last_inform_at,
   lastSyncedAt: r.last_synced_at,
   onlineStatus: r.online_status ?? 'unknown',
@@ -374,6 +378,24 @@ export class InventoryRepository {
   }
 
   /**
+   * Isi metadata inventaris yang MASIH KOSONG dari data device ACS (serial,
+   * vendor, model, management IP). Dipakai saat create-with-link / quick-link
+   * agar field terisi otomatis tanpa menimpa apa pun yang sudah diisi admin.
+   */
+  async fillInventoryFromDevice(inventoryId: number): Promise<void> {
+    await this.db.query(
+      `UPDATE onu_inventory i
+         JOIN onu_devices d ON d.inventory_id = i.id
+          SET i.serial_number = COALESCE(i.serial_number, d.serial_number),
+              i.manufacturer  = COALESCE(i.manufacturer, d.manufacturer),
+              i.model         = COALESCE(i.model, d.model),
+              i.management_ip = COALESCE(i.management_ip, d.management_ip)
+        WHERE i.id = ?`,
+      [inventoryId],
+    )
+ }
+
+  /**
    * Daftar perangkat ACS (onu_devices) yang BELUM tertaut ke inventaris mana pun.
    * Dipakai panel "Perangkat belum tertaut" & dropdown form Tambah/Tautkan.
    */
@@ -384,13 +406,14 @@ export class InventoryRepository {
       serialNumber: string | null
       manufacturer: string | null
       model: string | null
+      managementIp: string | null
       onlineStatus: OnlineStatus
       lastInformAt: Date | null
       lastSyncedAt: Date | null
     }>
   > {
     const [rows] = await this.db.query<RowDataPacket[]>(
-      `SELECT id, genieacs_device_id, serial_number, manufacturer, model,
+      `SELECT id, genieacs_device_id, serial_number, manufacturer, model, management_ip,
               online_status, last_inform_at, last_synced_at
          FROM onu_devices
         WHERE inventory_id IS NULL
@@ -404,6 +427,7 @@ export class InventoryRepository {
       serialNumber: (r.serial_number as string | null) ?? null,
       manufacturer: (r.manufacturer as string | null) ?? null,
       model: (r.model as string | null) ?? null,
+      managementIp: (r.management_ip as string | null) ?? null,
       onlineStatus: (r.online_status as OnlineStatus) ?? 'unknown',
       lastInformAt: (r.last_inform_at as Date | null) ?? null,
       lastSyncedAt: (r.last_synced_at as Date | null) ?? null,

@@ -58,6 +58,7 @@ export interface AcsUnlinkedDevice {
   serialNumber: string | null
   manufacturer: string | null
   model: string | null
+  managementIp: string | null
   onlineStatus: 'online' | 'offline' | 'unknown'
   lastInformAt: string | null
   lastSyncedAt: string | null

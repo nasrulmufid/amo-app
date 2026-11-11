@@ -214,6 +214,7 @@ export function InventoryFormDialog({
                       if (!form.getValues('serialNumber') && d.serialNumber) form.setValue('serialNumber', d.serialNumber)
                       if (!form.getValues('manufacturer') && d.manufacturer) form.setValue('manufacturer', d.manufacturer)
                       if (!form.getValues('model') && d.model) form.setValue('model', d.model)
+                      if (!form.getValues('managementIp') && d.managementIp) form.setValue('managementIp', d.managementIp)
                     }
                   }}
                 >
@@ -227,6 +228,7 @@ export function InventoryFormDialog({
                           {d.genieacsDeviceId}
                           {d.serialNumber ? ` · ${d.serialNumber}` : ''}
                           {d.model ? ` · ${d.model}` : ''}
+                          {d.managementIp ? ` · ${d.managementIp}` : ''}
                         </SelectItem>
                       ))
                     ) : (

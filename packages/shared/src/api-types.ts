@@ -275,6 +275,7 @@ export interface UnlinkedDeviceDTO {
   serialNumber: string | null
   manufacturer: string | null
   model: string | null
+  managementIp: string | null
   onlineStatus: OnlineStatus
   lastInformAt: string | null
   lastSyncedAt: string | null

@@ -75,6 +75,7 @@ describe('GenieACS mapper', () => {
     _lastInform: '2026-10-18T10:00:00.000Z',
     DeviceID: { SerialNumber: { _value: ' HWTC91B2401 ' }, ProductClass: { _value: 'HG8245H' } },
     InternetGatewayDevice: { DeviceInfo: { Manufacturer: { _value: 'Huawei' }, ModelName: { _value: '' } } },
+    VirtualParameters: { IPTR069: { _value: ' 192.168.1.20 ' } },
   }
   it('membaca path bertitik & men-trim nilai', () => {
     expect(readParam(device, 'DeviceID.SerialNumber')).toBe('HWTC91B2401')
@@ -84,6 +85,7 @@ describe('GenieACS mapper', () => {
     const n = normalizeDevice(device)
     expect(n.model).toBe('HG8245H')
     expect(n.manufacturer).toBe('Huawei')
+    expect(n.managementIp).toBe('192.168.1.20')
     expect(n.lastInformAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z')
   })
   it('deriveOnlineStatus: unknown bila tak pernah inform; online/offline sesuai threshold', () => {

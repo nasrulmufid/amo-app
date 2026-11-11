@@ -88,6 +88,7 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
                   serialNumber: Type.Union([Type.String(), Type.Null()]),
                   manufacturer: Type.Union([Type.String(), Type.Null()]),
                   model: Type.Union([Type.String(), Type.Null()]),
+                  managementIp: Type.Union([Type.String(), Type.Null()]),
                   onlineStatus: Type.Unsafe<OnlineStatus>(Type.String({ enum: [...ONLINE_STATUSES] })),
                   lastInformAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
                   lastSyncedAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),

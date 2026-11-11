@@ -79,6 +79,7 @@ export class InventoryService {
         serialNumber: d.serialNumber,
         manufacturer: d.manufacturer,
         model: d.model,
+        managementIp: d.managementIp,
         onlineStatus: d.onlineStatus,
         lastInformAt: d.lastInformAt?.toISOString() ?? null,
         lastSyncedAt: d.lastSyncedAt?.toISOString() ?? null,
@@ -157,6 +158,8 @@ export class InventoryService {
         throw Errors.conflict('Perangkat GenieACS tersebut sudah tertaut ke inventaris lain.')
       }
       await this.repo.linkDevice(id, genieId)
+      // Isi serial/vendor/model/management IP yang masih kosong dari data ACS.
+      await this.repo.fillInventoryFromDevice(id)
     }
 
     const created = await this.repo.findById(id)
@@ -290,7 +293,8 @@ export class InventoryService {
       serialNumber: row.serialNumber ?? row.deviceSerialNumber,
       manufacturer: row.manufacturer ?? row.deviceManufacturer,
       model: row.model ?? row.deviceModel,
-      managementIp: row.managementIp,
+      // Metadata manual menang; bila kosong → pakai IP dari device ACS (IPTR069 dkk.).
+      managementIp: row.managementIp ?? row.deviceManagementIp,
       locationName: row.locationName,
       onlineStatus: row.onlineStatus,
       displayStatus: this.displayStatus(row),

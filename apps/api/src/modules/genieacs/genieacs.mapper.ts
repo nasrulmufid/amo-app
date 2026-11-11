@@ -29,8 +29,13 @@ export const PARAM_PATHS = {
   ],
   productClass: ['DeviceID.ProductClass'],
   oui: ['DeviceID.OUI'],
-  // management_ip sengaja TIDAK diberi default (PRD §8.3: "jangan menganggap satu
-  // parameter berlaku untuk semua vendor") → tentukan per model lewat device_parameter_map.
+  // IP manajemen WAN/TR-069. "IPTR069" umum di firmware ZTE/Huawei; fallback ke
+  // path standar TR-098/TR-181. Bisa ditimpa per model lewat device_parameter_map.
+  managementIp: [
+    'VirtualParameters.IPTR069',
+    'InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress',
+    'Device.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress',
+  ],
 } as const satisfies Record<string, readonly string[]>
 
 export interface NormalizedDevice {
@@ -40,6 +45,7 @@ export interface NormalizedDevice {
   model: string | null
   productClass: string | null
   oui: string | null
+  managementIp: string | null
   lastInformAt: Date | null
 }
 
@@ -78,6 +84,7 @@ export function normalizeDevice(device: GenieDevice, extraPaths: Partial<Record<
     model: pickParam(device, paths('model')),
     productClass: pickParam(device, paths('productClass')),
     oui: pickParam(device, paths('oui')),
+    managementIp: pickParam(device, paths('managementIp')),
     lastInformAt: lastInform && !Number.isNaN(lastInform.getTime()) ? lastInform : null,
   }
 }

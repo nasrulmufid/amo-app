@@ -89,6 +89,7 @@ export class SyncService {
             serialNumber: normalized.serialNumber,
             manufacturer: normalized.manufacturer,
             model: normalized.model,
+            managementIp: normalized.managementIp,
             lastInformAt: normalized.lastInformAt,
             lastSyncedAt: now,
             onlineStatus: deriveOnlineStatus(normalized.lastInformAt, this.env.ONLINE_THRESHOLD_SECONDS, now),
@@ -96,6 +97,8 @@ export class SyncService {
             syncError: null,
           })
           linked += await this.repo.autolinkBySerial(deviceId, normalized.serialNumber)
+          // Metadata inventaris yang masih kosong diisi dari data ACS (serial/vendor/model/IP).
+          await this.repo.fillInventoryFromDevice(deviceId)
           await this.autoCreateInventory(deviceId, normalized, now)
           success++
         } catch (err) {
@@ -209,6 +212,7 @@ export class SyncService {
         serialNumber: normalized.serialNumber,
         manufacturer: normalized.manufacturer,
         model: normalized.model,
+        managementIp: normalized.managementIp,
         uuid: randomUUID(),
         createdAt: now,
       },

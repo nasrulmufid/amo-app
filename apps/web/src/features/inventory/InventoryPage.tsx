@@ -279,6 +279,7 @@ export default function InventoryPage() {
                     <div className="truncate font-mono text-xs font-medium">{d.genieacsDeviceId}</div>
                     <div className="text-xs text-muted-foreground">
                       {[d.serialNumber, d.manufacturer, d.model].filter(Boolean).join(' · ') || 'Tanpa serial/model'}
+                      {d.managementIp && <span className="font-mono"> · {d.managementIp}</span>}
                       {' · '}
                       <span className={d.onlineStatus === 'online' ? 'text-status-online' : 'text-status-offline'}>
                         {d.onlineStatus}
