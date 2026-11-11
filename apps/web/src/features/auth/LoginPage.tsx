@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { AppFooter } from '@/components/layout/AppFooter'
 import { ApiError } from '@/lib/api'
 import { useAuth } from './auth-context'
 
@@ -91,6 +92,7 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+      <AppFooter className="fixed inset-x-0 bottom-0" />
     </main>
   )
 }

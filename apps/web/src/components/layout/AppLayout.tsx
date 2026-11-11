@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useAuth } from '@/features/auth/auth-context'
 import { cn } from '@/lib/utils'
+import { AppFooter } from './AppFooter'
 import { NAV_ITEMS } from './nav-items'
 
 const ROLE_LABEL = { admin: 'Administrator', operator: 'Operator', viewer: 'Viewer' } as const
@@ -125,6 +126,7 @@ export function AppLayout() {
       <main className="min-w-0 p-4 md:p-8">
         <Outlet />
       </main>
+      <AppFooter />
     </div>
   )
 }
