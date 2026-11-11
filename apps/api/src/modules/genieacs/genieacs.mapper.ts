@@ -23,6 +23,7 @@ export const PARAM_PATHS = {
     'Device.DeviceInfo.Manufacturer',
   ],
   model: [
+    'DeviceID.Manufacturer',
     'InternetGatewayDevice.DeviceInfo.ModelName',
     'Device.DeviceInfo.ModelName',
     'DeviceID.ProductClass', // fallback sesuai PRD: "Jika kosong, gunakan ProductClass"

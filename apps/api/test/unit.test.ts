@@ -73,7 +73,11 @@ describe('GenieACS mapper', () => {
   const device = {
     _id: '00259E-HG8245H-HWTC91B2401',
     _lastInform: '2026-10-18T10:00:00.000Z',
-    DeviceID: { SerialNumber: { _value: ' HWTC91B2401 ' }, ProductClass: { _value: 'HG8245H' } },
+    DeviceID: {
+      SerialNumber: { _value: ' HWTC91B2401 ' },
+      Manufacturer: { _value: 'EchoLife' },
+      ProductClass: { _value: 'HG8245H' },
+    },
     InternetGatewayDevice: { DeviceInfo: { Manufacturer: { _value: 'Huawei' }, ModelName: { _value: '' } } },
     VirtualParameters: { IPTR069: { _value: ' 192.168.1.20 ' } },
   }
@@ -81,9 +85,9 @@ describe('GenieACS mapper', () => {
     expect(readParam(device, 'DeviceID.SerialNumber')).toBe('HWTC91B2401')
     expect(readParam(device, 'Tidak.Ada.Path')).toBeNull()
   })
-  it('fallback model → ProductClass bila ModelName kosong (PRD §8.3)', () => {
+  it('menggunakan mapping DeviceID untuk model dan metadata lain', () => {
     const n = normalizeDevice(device)
-    expect(n.model).toBe('HG8245H')
+    expect(n.model).toBe('EchoLife')
     expect(n.manufacturer).toBe('Huawei')
     expect(n.managementIp).toBe('192.168.1.20')
     expect(n.lastInformAt?.toISOString()).toBe('2026-10-18T10:00:00.000Z')
