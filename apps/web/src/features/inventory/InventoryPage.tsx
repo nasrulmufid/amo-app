@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useAuth } from '@/features/auth/auth-context'
+import { SyncNowButton } from '@/features/genieacs/SyncNowButton'
 import { formatRelative } from '@/lib/format'
 import { fetchInventory, fetchInventoryFacets, fetchAcsUnlinkedDevices, inventoryKeys, linkInventoryToDevice, deleteInventory, type InventoryListParams } from './inventory.api'
 import { InventoryFormDialog } from './InventoryFormDialog'
@@ -144,11 +145,14 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Inventaris ONU</h1>
           <p className="text-sm text-muted-foreground">Cari, filter, dan kelola semua perangkat yang terdaftar.</p>
         </div>
-        {can('inventory.write') && (
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus aria-hidden /> Tambah / Tautkan ONU
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <SyncNowButton />
+          {can('inventory.write') && (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus aria-hidden /> Tambah / Tautkan ONU
+            </Button>
+          )}
+        </div>
       </header>
 
       {/* Filter bar */}

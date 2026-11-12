@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useAuth } from '@/features/auth/auth-context'
+import { SyncNowButton } from '@/features/genieacs/SyncNowButton'
 import { formatDateTime, formatRelative } from '@/lib/format'
 import { dashboardKeys, fetchDashboardSummary } from './dashboard.api'
 
@@ -43,17 +44,20 @@ export default function DashboardPage() {
   return (
     // grid-cols-1 = minmax(0,1fr): tanpa ini kolom implisit membengkak mengikuti lebar tabel → overflow di HP.
     <div className="grid grid-cols-1 gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-2">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">Ringkasan kondisi perangkat jaringan Anda.</p>
         </div>
-        {/* PRD §5: tampilkan sumber & waktu data terakhir diperbarui */}
-        {data && (
-          <p className="text-xs text-muted-foreground">
-            Sinkronisasi GenieACS terakhir: <span className="font-medium text-foreground">{formatDateTime(data.lastSyncedAt)}</span>
-          </p>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* PRD §5: tampilkan sumber & waktu data terakhir diperbarui */}
+          {data && (
+            <p className="text-xs text-muted-foreground">
+              Sinkronisasi GenieACS terakhir: <span className="font-medium text-foreground">{formatDateTime(data.lastSyncedAt)}</span>
+            </p>
+          )}
+          <SyncNowButton />
+        </div>
       </header>
 
       {isError && (
