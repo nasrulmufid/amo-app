@@ -4,7 +4,7 @@ import { AlertCircle, ArrowRight, CircleAlert, ListChecks, MapPin, ScrollText, W
 import type { ReactNode } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -103,7 +103,9 @@ export default function DashboardPage() {
                 <p className="mt-1">Tambahkan atau tautkan ONU di halaman Inventaris untuk mulai memantau.</p>
               </div>
             ) : data ? (
-              <Table>
+              <>
+                <div className="hidden md:block">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nama / Serial</TableHead>
@@ -125,7 +127,31 @@ export default function DashboardPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+                </div>
+                <div className="grid gap-3 md:hidden">
+                  {data.recent.map((d) => (
+                    <Card key={d.uuid} size="sm" className="gap-0">
+                    <CardHeader className="flex-row items-start justify-between gap-3 border-b pb-3">
+                      <div className="min-w-0">
+                        <CardTitle className="truncate text-sm">{d.name}</CardTitle>
+                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                          {d.serialNumber ?? 'Serial belum ada'}
+                        </p>
+                      </div>
+                      <StatusBadge status={d.displayStatus} className="shrink-0" />
+                    </CardHeader>
+                    <CardFooter className="justify-between gap-3 pt-3 text-xs">
+                      <div className="min-w-0 truncate">
+                        <span className="text-muted-foreground">Model · </span>
+                        {[d.manufacturer, d.model].filter(Boolean).join(' ') || '—'}
+                      </div>
+                      <span className="shrink-0 text-muted-foreground">{formatRelative(d.lastSyncedAt)}</span>
+                    </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </>
             ) : null}
           </CardContent>
         </Card>

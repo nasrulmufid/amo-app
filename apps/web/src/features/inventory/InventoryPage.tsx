@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyIcon, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -354,7 +354,9 @@ export default function InventoryPage() {
               ) : null}
             </Empty>
           ) : (
-            <Table>
+            <>
+              <div className="hidden md:block">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nama perangkat</TableHead>
@@ -412,7 +414,65 @@ export default function InventoryPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+              </div>
+              <div className="grid gap-3 md:hidden">
+                {items.map((d) => (
+                  <Card key={d.uuid} size="sm" className="gap-0 overflow-hidden">
+                  <CardHeader className="flex-row items-start justify-between gap-3 border-b pb-3">
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-sm">
+                        <Link to={`/inventory/${d.uuid}`} className="hover:text-primary hover:underline">
+                          {d.name}
+                        </Link>
+                      </CardTitle>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {d.locationName ?? 'Lokasi belum diisi'}
+                      </p>
+                    </div>
+                    <StatusBadge status={d.displayStatus} className="shrink-0" />
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 gap-x-4 gap-y-3 py-3 text-xs">
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">Serial number</p>
+                      <p className="mt-0.5 truncate font-mono font-medium">{d.serialNumber ?? '—'}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">Model</p>
+                      <p className="mt-0.5 truncate font-medium">{[d.manufacturer, d.model].filter(Boolean).join(' ') || '—'}</p>
+                      {!d.linked && <Badge variant="outline" className="mt-1 text-[10px]">Belum tertaut</Badge>}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">IP</p>
+                      <p className="mt-0.5 truncate font-mono font-medium">{d.managementIp ?? '—'}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">Sinkronisasi</p>
+                      <p className="mt-0.5 truncate font-medium">{formatRelative(d.lastSyncedAt)}</p>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="gap-2 border-t pt-3">
+                    <Button asChild variant="outline" size="sm" className="flex-1">
+                      <Link to={`/inventory/${d.uuid}`}>
+                        Detail <ExternalLink aria-hidden />
+                      </Link>
+                    </Button>
+                    {canWrite && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive hover:text-destructive"
+                        aria-label={`Hapus ${d.name}`}
+                        onClick={() => setDeleteTarget({ uuid: d.uuid, name: d.name })}
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    )}
+                  </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
 
           {pagination && pagination.total > 0 && (
