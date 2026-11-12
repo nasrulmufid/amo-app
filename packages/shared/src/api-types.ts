@@ -162,6 +162,7 @@ export interface InventoryListQuery {
   manufacturer?: string
   model?: string
   linked?: 'all' | 'linked' | 'unlinked'
+  needsData?: boolean
   sort?: 'name' | 'createdAt' | 'lastSyncedAt' | 'status'
   order?: 'asc' | 'desc'
 }

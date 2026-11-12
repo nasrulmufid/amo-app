@@ -82,6 +82,14 @@ describe.skipIf(!DB_URL)('inventaris, pengguna, audit, pengaturan & remote (MySQ
       expect(list.statusCode).toBe(200)
       expect(list.json().data.items.map((i: { uuid: string }) => i.uuid)).toContain(created.uuid)
       expect(list.json().data.pagination.total).toBeGreaterThanOrEqual(1)
+
+      const incomplete = (await post('/api/v1/inventory', s, { name: `INCOMPLETE-${run}` })).json().data
+      inventoryIds.push(await idOf(incomplete.uuid))
+      const needsData = await get('/api/v1/inventory?needsData=true', s)
+      expect(needsData.statusCode).toBe(200)
+      const needsDataUuids = needsData.json().data.items.map((item: { uuid: string }) => item.uuid)
+      expect(needsDataUuids).toContain(incomplete.uuid)
+      expect(needsDataUuids).not.toContain(created.uuid)
     })
 
     it('serial duplikat → 409 CONFLICT', async () => {

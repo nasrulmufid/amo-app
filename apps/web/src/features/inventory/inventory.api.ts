@@ -26,6 +26,7 @@ export interface InventoryListParams {
   manufacturer?: string
   model?: string
   linked?: string
+  needsData?: boolean
   sort?: string
   order?: string
 }

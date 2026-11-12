@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StatusBadge } from '@/components/StatusBadge'
 import { useAuth } from '@/features/auth/auth-context'
 import { SyncNowButton } from '@/features/genieacs/SyncNowButton'
+import { RemoteButton } from '@/features/remote/RemoteButton'
 import { formatRelative } from '@/lib/format'
 import { fetchInventory, fetchInventoryFacets, fetchAcsUnlinkedDevices, inventoryKeys, linkInventoryToDevice, deleteInventory, type InventoryListParams } from './inventory.api'
 import { InventoryFormDialog } from './InventoryFormDialog'
@@ -65,6 +66,7 @@ export default function InventoryPage() {
       manufacturer: searchParams.get('manufacturer') ?? undefined,
       model: searchParams.get('model') ?? undefined,
       linked: searchParams.get('linked') ?? undefined,
+      needsData: searchParams.get('needsData') === 'true' || undefined,
       sort: searchParams.get('sort') ?? 'createdAt',
       order: searchParams.get('order') ?? 'desc',
     }),
@@ -134,7 +136,7 @@ export default function InventoryPage() {
     setSearchParams(new URLSearchParams(), { replace: true })
   }
 
-  const hasFilters = ['q', 'status', 'manufacturer', 'model', 'linked'].some((k) => searchParams.has(k))
+  const hasFilters = ['q', 'status', 'manufacturer', 'model', 'linked', 'needsData'].some((k) => searchParams.has(k))
   const pagination = list.data?.pagination
   const items = list.data?.items ?? []
 
@@ -223,6 +225,19 @@ export default function InventoryPage() {
                 <SelectItem value="all">Semua tautan</SelectItem>
                 <SelectItem value="linked">Tertaut GenieACS</SelectItem>
                 <SelectItem value="unlinked">Belum tertaut</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={params.needsData ? 'incomplete' : 'all'}
+              onValueChange={(v) => setParam('needsData', v === 'incomplete' ? 'true' : undefined)}
+            >
+              <SelectTrigger className="w-40" aria-label="Filter kelengkapan data">
+                <SelectValue placeholder="Kelengkapan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua kelengkapan</SelectItem>
+                <SelectItem value="incomplete">Perlu data</SelectItem>
               </SelectContent>
             </Select>
 
@@ -393,6 +408,14 @@ export default function InventoryPage() {
                     <TableCell className="text-xs text-muted-foreground">{formatRelative(d.lastSyncedAt)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {can('remote.open') && (
+                          <RemoteButton
+                            uuid={d.uuid}
+                            size="sm"
+                            disabled={!d.isActive || !d.managementIp}
+                            disabledReason={!d.isActive ? 'Perangkat nonaktif.' : 'Management IP belum diisi.'}
+                          />
+                        )}
                         <Button asChild variant="outline" size="sm">
                           <Link to={`/inventory/${d.uuid}`}>
                             Detail <ExternalLink aria-hidden />
@@ -452,6 +475,16 @@ export default function InventoryPage() {
                     </div>
                   </CardContent>
                   <CardFooter className="gap-2 border-t pt-3">
+                    {can('remote.open') && (
+                      <RemoteButton
+                        uuid={d.uuid}
+                        size="sm"
+                        compact
+                        className="max-[480px]:size-8 max-[480px]:flex-none max-[480px]:px-0"
+                        disabled={!d.isActive || !d.managementIp}
+                        disabledReason={!d.isActive ? 'Perangkat nonaktif.' : 'Management IP belum diisi.'}
+                      />
+                    )}
                     <Button asChild variant="outline" size="sm" className="flex-1">
                       <Link to={`/inventory/${d.uuid}`}>
                         Detail <ExternalLink aria-hidden />

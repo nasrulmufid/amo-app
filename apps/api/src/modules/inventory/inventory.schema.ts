@@ -43,6 +43,7 @@ export const InventoryListQuery = Type.Intersect([
     manufacturer: Type.Optional(Type.String({ maxLength: 128 })),
     model: Type.Optional(Type.String({ maxLength: 128 })),
     linked: Type.Optional(Type.Unsafe<'all' | 'linked' | 'unlinked'>(Type.String({ enum: ['all', 'linked', 'unlinked'] }))),
+    needsData: Type.Optional(Type.Boolean()),
     sort: Type.Optional(
       Type.Unsafe<'name' | 'createdAt' | 'lastSyncedAt' | 'status'>(
         Type.String({ enum: ['name', 'createdAt', 'lastSyncedAt', 'status'] }),

@@ -13,18 +13,34 @@ import { SyncNowButton } from '@/features/genieacs/SyncNowButton'
 import { formatDateTime, formatRelative } from '@/lib/format'
 import { dashboardKeys, fetchDashboardSummary } from './dashboard.api'
 
-function StatCard({ label, value, hint, icon, tone }: { label: string; value: number; hint: string; icon: ReactNode; tone?: string }) {
+function StatCard({
+  label,
+  value,
+  hint,
+  icon,
+  tone,
+  href,
+}: {
+  label: string
+  value: number
+  hint: string
+  icon: ReactNode
+  tone?: string
+  href: string
+}) {
   return (
-    <Card className="gap-2 py-4 sm:py-5">
-      <CardHeader className="flex-row items-center justify-between px-4 sm:px-5">
-        <CardDescription className="text-xs font-medium sm:text-sm">{label}</CardDescription>
-        <span className={tone ?? 'text-muted-foreground'} aria-hidden>{icon}</span>
-      </CardHeader>
-      <CardContent className="px-4 sm:px-5">
-        <div className="text-2xl font-semibold tabular-nums sm:text-3xl">{value.toLocaleString('id-ID')}</div>
-        <p className="mt-1 text-[11px] leading-snug text-muted-foreground sm:text-xs">{hint}</p>
-      </CardContent>
-    </Card>
+    <Link to={href} aria-label={`${label}: ${value}. ${hint}`} className="group/stat-card block rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+      <Card className="h-full gap-2 py-4 transition-shadow group-hover/stat-card:ring-primary/30 sm:py-5">
+        <CardHeader className="flex-row items-center justify-between px-4 sm:px-5">
+          <CardDescription className="text-xs font-medium sm:text-sm">{label}</CardDescription>
+          <span className={tone ?? 'text-muted-foreground'} aria-hidden>{icon}</span>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-5">
+          <div className="text-2xl font-semibold tabular-nums sm:text-3xl">{value.toLocaleString('id-ID')}</div>
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground sm:text-xs">{hint}</p>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
 
@@ -77,10 +93,10 @@ export default function DashboardPage() {
           Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)
         ) : data ? (
           <>
-            <StatCard label="Total ONU" value={data.totals.total} hint="Terdaftar" icon={<Router className="size-4" />} />
-            <StatCard label="Online" value={data.totals.online} hint="Status aktif" icon={<Wifi className="size-4" />} tone="text-status-online" />
-            <StatCard label="Offline" value={data.totals.offline} hint={`${data.totals.stale} data stale · ${data.totals.unknown} unknown · ${data.totals.syncError} sync error`} icon={<WifiOff className="size-4" />} tone="text-status-offline" />
-            <StatCard label="Perlu data" value={data.totals.needsData} hint="Koordinat / serial belum lengkap" icon={<CircleAlert className="size-4" />} tone="text-status-stale" />
+            <StatCard href="/inventory" label="Total ONU" value={data.totals.total} hint="Terdaftar · lihat inventaris" icon={<Router className="size-4" />} />
+            <StatCard href="/inventory?status=online" label="Online" value={data.totals.online} hint="Status aktif · lihat perangkat" icon={<Wifi className="size-4" />} tone="text-status-online" />
+            <StatCard href="/inventory?status=offline" label="Offline" value={data.totals.offline} hint={`${data.totals.stale} data stale · ${data.totals.unknown} unknown · ${data.totals.syncError} sync error`} icon={<WifiOff className="size-4" />} tone="text-status-offline" />
+            <StatCard href="/inventory?needsData=true" label="Perlu data" value={data.totals.needsData} hint="Koordinat / serial belum lengkap · lihat perangkat" icon={<CircleAlert className="size-4" />} tone="text-status-stale" />
           </>
         ) : null}
       </section>

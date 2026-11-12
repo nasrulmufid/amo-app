@@ -144,6 +144,7 @@ export interface ListFilters {
   manufacturer?: string
   model?: string
   linked?: 'all' | 'linked' | 'unlinked'
+  needsData?: boolean
   sort?: keyof typeof SORT_COLUMNS
   order?: 'asc' | 'desc'
   onlineThresholdSeconds?: number
@@ -201,6 +202,9 @@ export class InventoryRepository {
     }
     if (filters.linked === 'linked') where.push('d.id IS NOT NULL')
     if (filters.linked === 'unlinked') where.push('d.id IS NULL')
+    if (filters.needsData) {
+      where.push('(i.latitude IS NULL OR i.longitude IS NULL OR i.serial_number IS NULL)')
+    }
 
     const whereSql = `WHERE ${where.join(' AND ')}`
     const sortCol = SORT_COLUMNS[filters.sort ?? 'createdAt']
