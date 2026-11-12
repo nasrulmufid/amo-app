@@ -74,6 +74,7 @@ export default function InventoryPage() {
     queryKey: inventoryKeys.list(params),
     queryFn: () => fetchInventory(params),
     placeholderData: keepPreviousData,
+    refetchInterval: 60_000,
   })
   const facets = useQuery({ queryKey: inventoryKeys.facets, queryFn: fetchInventoryFacets, staleTime: 5 * 60_000 })
 

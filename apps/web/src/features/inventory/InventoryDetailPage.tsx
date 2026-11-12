@@ -50,6 +50,7 @@ export default function InventoryDetailPage() {
     queryKey: inventoryKeys.detail(uuid),
     queryFn: () => fetchInventoryDetail(uuid),
     enabled: Boolean(uuid),
+    refetchInterval: 60_000,
   })
 
   if (isPending) {

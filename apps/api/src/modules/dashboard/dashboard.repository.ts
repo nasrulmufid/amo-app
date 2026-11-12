@@ -1,12 +1,14 @@
 import type { Pool, RowDataPacket } from 'mysql2/promise'
-import type { OnlineStatus } from '@amo/shared'
 
 interface TotalsRow extends RowDataPacket {
   total: number
-  online: number
-  offline: number
-  unknown: number
   needs_data: number
+}
+export interface DashboardStatusRow extends RowDataPacket {
+  device_id: number | null
+  sync_error: string | null
+  last_inform_at: Date | null
+  last_synced_at: Date | null
 }
 interface RecentRow extends RowDataPacket {
   uuid: string
@@ -14,7 +16,9 @@ interface RecentRow extends RowDataPacket {
   serial_number: string | null
   manufacturer: string | null
   model: string | null
-  online_status: OnlineStatus
+  device_id: number | null
+  sync_error: string | null
+  last_inform_at: Date | null
   last_synced_at: Date | null
 }
 interface LastSyncRow extends RowDataPacket {
@@ -24,10 +28,10 @@ interface LastSyncRow extends RowDataPacket {
 /**
  * ┌─ DEFINISI ANGKA DASHBOARD (PRD §16: "dapat ditelusuri ke definisi query") ─┐
  * │ Populasi  : onu_inventory WHERE is_active = 1  (inventaris yang aktif)      │
- * │ Status    : onu_devices.online_status via inventory_id; bila belum tertaut  │
- * │             ke device GenieACS → dihitung 'unknown' (BUKAN offline, PRD §12)│
+ * │ Status    : diturunkan dari last_inform_at GenieACS dan umur last_synced_at │
+ * │             pada request; snapshot online_status tidak dipakai untuk UI.    │
  * │ total     : jumlah populasi                                                 │
- * │ online / offline / unknown : jumlah populasi per status di atas             │
+ * │ online / offline / unknown / stale : status terkini + kesegaran sinkronisasi│
  * │ needsData : populasi yang latitude/longitude ATAU serial_number-nya NULL    │
  * │ lastSynced: MAX(onu_devices.last_synced_at) — kesegaran data terakhir       │
  * └─────────────────────────────────────────────────────────────────────────────┘
@@ -41,22 +45,26 @@ export class DashboardRepository {
     const [rows] = await this.db.query<TotalsRow[]>(
       `SELECT
          COUNT(*)                                                             AS total,
-         COALESCE(SUM(COALESCE(d.online_status, 'unknown') = 'online'),  0)  AS online,
-         COALESCE(SUM(COALESCE(d.online_status, 'unknown') = 'offline'), 0)  AS offline,
-         COALESCE(SUM(COALESCE(d.online_status, 'unknown') = 'unknown'), 0)  AS unknown,
          COALESCE(SUM(i.latitude IS NULL OR i.longitude IS NULL OR i.serial_number IS NULL), 0) AS needs_data
        FROM onu_inventory i
-       LEFT JOIN onu_devices d ON d.inventory_id = i.id
        WHERE i.is_active = 1`,
     )
     const r = rows[0]
     return {
       total: Number(r?.total ?? 0),
-      online: Number(r?.online ?? 0),
-      offline: Number(r?.offline ?? 0),
-      unknown: Number(r?.unknown ?? 0),
       needsData: Number(r?.needs_data ?? 0),
     }
+  }
+
+  /** Status minimal seluruh populasi aktif; dihitung service dari inform terakhir pada waktu request. */
+  async getStatusRows(): Promise<DashboardStatusRow[]> {
+    const [rows] = await this.db.query<DashboardStatusRow[]>(
+      `SELECT d.id AS device_id, d.sync_error, d.last_inform_at, d.last_synced_at
+         FROM onu_inventory i
+         LEFT JOIN onu_devices d ON d.inventory_id = i.id
+        WHERE i.is_active = 1`,
+    )
+    return rows
   }
 
   /** 5 perangkat terbaru didaftarkan. Field manual (inventaris) diutamakan atas data ACS. */
@@ -66,7 +74,9 @@ export class DashboardRepository {
               COALESCE(i.serial_number, d.serial_number) AS serial_number,
               COALESCE(i.manufacturer,  d.manufacturer)  AS manufacturer,
               COALESCE(i.model,         d.model)         AS model,
-              COALESCE(d.online_status, 'unknown')       AS online_status,
+              d.id AS device_id,
+              d.sync_error,
+              d.last_inform_at,
               d.last_synced_at
          FROM onu_inventory i
          LEFT JOIN onu_devices d ON d.inventory_id = i.id
@@ -80,7 +90,9 @@ export class DashboardRepository {
       serialNumber: r.serial_number,
       manufacturer: r.manufacturer,
       model: r.model,
-      onlineStatus: r.online_status,
+      linked: r.device_id !== null,
+      syncError: r.sync_error,
+      lastInformAt: r.last_inform_at,
       lastSyncedAt: r.last_synced_at,
     }))
   }

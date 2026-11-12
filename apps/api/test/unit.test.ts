@@ -3,7 +3,7 @@ import { roleHasPermission } from '@amo/shared'
 import { hashPassword, verifyPassword } from '../src/common/password'
 import { loadEnv } from '../src/config/env'
 import { redact } from '../src/modules/audit/audit.service'
-import { deriveOnlineStatus, normalizeDevice, readParam } from '../src/modules/genieacs/genieacs.mapper'
+import { deriveDeviceDisplayStatus, deriveOnlineStatus, normalizeDevice, readParam } from '../src/modules/genieacs/genieacs.mapper'
 import { SessionService } from '../src/modules/auth/session.service'
 
 describe('RBAC (shared)', () => {
@@ -114,5 +114,19 @@ describe('GenieACS mapper', () => {
     expect(deriveOnlineStatus(null, 600, now)).toBe('unknown')
     expect(deriveOnlineStatus(new Date('2026-10-18T10:05:00Z'), 600, now)).toBe('online')
     expect(deriveOnlineStatus(new Date('2026-10-18T09:50:00Z'), 600, now)).toBe('offline')
+  })
+
+  it('status tampilan selalu dihitung dari lastInform dan menandai data usang', () => {
+    const now = new Date('2026-10-18T10:10:00Z')
+    const options = { onlineThresholdSeconds: 600, staleAfterSeconds: 180, now }
+    const base = { linked: true, syncError: null, lastSyncedAt: new Date('2026-10-18T10:09:00Z') }
+
+    // Status tersimpan sebelumnya tidak dipakai: hanya waktu inform GenieACS.
+    expect(deriveDeviceDisplayStatus({ ...base, lastInformAt: new Date('2026-10-18T10:09:00Z') }, options)).toBe('online')
+    expect(deriveDeviceDisplayStatus({ ...base, lastInformAt: new Date('2026-10-18T09:50:00Z') }, options)).toBe('offline')
+    expect(deriveDeviceDisplayStatus({ ...base, lastInformAt: null }, options)).toBe('unknown')
+    expect(deriveDeviceDisplayStatus({ ...base, lastSyncedAt: new Date('2026-10-18T10:06:59Z'), lastInformAt: new Date('2026-10-18T10:09:00Z') }, options)).toBe('stale')
+    expect(deriveDeviceDisplayStatus({ ...base, syncError: 'NBI timeout', lastInformAt: new Date('2026-10-18T10:09:00Z') }, options)).toBe('sync_error')
+    expect(deriveDeviceDisplayStatus({ ...base, linked: false, lastInformAt: null }, options)).toBe('unknown')
   })
 })

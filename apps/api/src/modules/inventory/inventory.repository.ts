@@ -131,7 +131,11 @@ const SORT_COLUMNS = {
   name: 'i.name',
   createdAt: 'i.created_at',
   lastSyncedAt: 'd.last_synced_at',
-  status: "COALESCE(d.online_status, 'unknown')",
+  status: `CASE
+    WHEN d.id IS NULL OR d.last_inform_at IS NULL THEN 'unknown'
+    WHEN TIMESTAMPADD(SECOND, ?, d.last_inform_at) >= UTC_TIMESTAMP(3) THEN 'online'
+    ELSE 'offline'
+  END`,
 } as const
 
 export interface ListFilters {
@@ -142,6 +146,7 @@ export interface ListFilters {
   linked?: 'all' | 'linked' | 'unlinked'
   sort?: keyof typeof SORT_COLUMNS
   order?: 'asc' | 'desc'
+  onlineThresholdSeconds?: number
   page: number
   pageSize: number
 }
@@ -183,8 +188,8 @@ export class InventoryRepository {
       params.push(like, like, like, like, like)
     }
     if (filters.status && filters.status !== 'all') {
-      where.push("COALESCE(d.online_status, 'unknown') = ?")
-      params.push(filters.status)
+      where.push(`(${SORT_COLUMNS.status}) = ?`)
+      params.push(filters.onlineThresholdSeconds ?? 600, filters.status)
     }
     if (filters.manufacturer) {
       where.push('COALESCE(i.manufacturer, d.manufacturer) = ?')
@@ -201,6 +206,7 @@ export class InventoryRepository {
     const sortCol = SORT_COLUMNS[filters.sort ?? 'createdAt']
     const direction = filters.order === 'asc' ? 'ASC' : 'DESC'
     const offset = (filters.page - 1) * filters.pageSize
+    const sortParams = filters.sort === 'status' ? [filters.onlineThresholdSeconds ?? 600] : []
 
     const [countRows] = await this.db.query<RowDataPacket[]>(
       `SELECT COUNT(*) AS total ${FROM} ${whereSql}`,
@@ -212,7 +218,7 @@ export class InventoryRepository {
       `SELECT ${SELECT_COLUMNS} ${FROM} ${whereSql}
         ORDER BY ${sortCol} ${direction}, i.id DESC
         LIMIT ? OFFSET ?`,
-      [...params, filters.pageSize, offset],
+      [...params, ...sortParams, filters.pageSize, offset],
     )
     return { rows: rows.map(toRow), total }
   }

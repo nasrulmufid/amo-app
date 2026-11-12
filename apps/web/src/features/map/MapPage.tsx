@@ -24,6 +24,7 @@ export default function MapPage() {
   const { data, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: inventoryKeys.map,
     queryFn: fetchInventoryMap,
+    refetchInterval: 60_000,
   })
 
   return (

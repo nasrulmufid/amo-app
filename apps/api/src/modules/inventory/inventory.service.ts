@@ -11,6 +11,7 @@ import type {
 } from '@amo/shared'
 import type { Env } from '../../config/env'
 import { Errors } from '../../common/errors'
+import { deriveDeviceDisplayStatus, deriveOnlineStatus } from '../genieacs/genieacs.mapper'
 import type { InventoryRepository, InventoryRow } from './inventory.repository'
 
 /**
@@ -53,7 +54,10 @@ export class InventoryService {
     sort?: 'name' | 'createdAt' | 'lastSyncedAt' | 'status'
     order?: 'asc' | 'desc'
   }) {
-    const { rows, total } = await this.repo.list(query)
+    const { rows, total } = await this.repo.list({
+      ...query,
+      onlineThresholdSeconds: this.env.ONLINE_THRESHOLD_SECONDS,
+    })
     return {
       items: rows.map((r) => this.toListItem(r)),
       pagination: {
@@ -109,7 +113,7 @@ export class InventoryService {
         latitude: r.latitude as number,
         longitude: r.longitude as number,
         locationName: r.locationName,
-        onlineStatus: r.onlineStatus,
+        onlineStatus: this.onlineStatus(r),
         displayStatus: this.displayStatus(r),
       })),
       withoutCoordinates,
@@ -276,14 +280,25 @@ export class InventoryService {
    *  - belum tertaut ACS            → 'unknown' (BUKAN offline)
    *  - sync terakhir gagal          → 'sync_error'
    *  - data lebih tua dari ambang   → 'stale'
-   *  - selain itu                   → online_status apa adanya
+   *  - selain itu                   → dihitung dari lastInformAt terbaru
    */
   private displayStatus(row: InventoryRow): DeviceDisplayStatus {
-    if (row.deviceId === null) return 'unknown'
-    if (row.syncError) return 'sync_error'
-    const staleMs = this.env.GENIEACS_SYNC_INTERVAL_SECONDS * STALE_FACTOR * 1000
-    if (row.lastSyncedAt && Date.now() - row.lastSyncedAt.getTime() > staleMs) return 'stale'
-    return row.onlineStatus
+    return deriveDeviceDisplayStatus(
+      {
+        linked: row.deviceId !== null,
+        syncError: row.syncError,
+        lastSyncedAt: row.lastSyncedAt,
+        lastInformAt: row.lastInformAt,
+      },
+      {
+        onlineThresholdSeconds: this.env.ONLINE_THRESHOLD_SECONDS,
+        staleAfterSeconds: this.env.GENIEACS_SYNC_INTERVAL_SECONDS * STALE_FACTOR,
+      },
+    )
+  }
+
+  private onlineStatus(row: InventoryRow): OnlineStatus {
+    return deriveOnlineStatus(row.lastInformAt, this.env.ONLINE_THRESHOLD_SECONDS)
   }
 
   private toListItem(row: InventoryRow): InventoryListItemDTO {
@@ -296,7 +311,7 @@ export class InventoryService {
       // Metadata manual menang; bila kosong → pakai IP dari device ACS (IPTR069 dkk.).
       managementIp: row.managementIp ?? row.deviceManagementIp,
       locationName: row.locationName,
-      onlineStatus: row.onlineStatus,
+      onlineStatus: this.onlineStatus(row),
       displayStatus: this.displayStatus(row),
       lastInformAt: row.lastInformAt?.toISOString() ?? null,
       lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
@@ -324,7 +339,7 @@ export class InventoryService {
               genieacsDeviceId: row.genieacsDeviceId,
               lastInformAt: row.lastInformAt?.toISOString() ?? null,
               lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
-              onlineStatus: row.onlineStatus,
+              onlineStatus: this.onlineStatus(row),
               syncError: row.syncError,
               parameters: (row.parametersJson as Record<string, unknown> | null) ?? null,
             }

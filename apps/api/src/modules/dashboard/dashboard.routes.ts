@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox'
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox'
-import { ONLINE_STATUSES, type OnlineStatus } from '@amo/shared'
+import { DEVICE_DISPLAY_STATUSES, type DeviceDisplayStatus } from '@amo/shared'
 import { ok } from '../../common/http'
 import { CommonErrors, Envelope } from '../../common/schemas'
 import { DashboardRepository } from './dashboard.repository'
@@ -12,7 +12,7 @@ const DeviceRow = Type.Object({
   serialNumber: Type.Union([Type.String(), Type.Null()]),
   manufacturer: Type.Union([Type.String(), Type.Null()]),
   model: Type.Union([Type.String(), Type.Null()]),
-  onlineStatus: Type.Unsafe<OnlineStatus>(Type.String({ enum: [...ONLINE_STATUSES] })),
+  displayStatus: Type.Unsafe<DeviceDisplayStatus>(Type.String({ enum: [...DEVICE_DISPLAY_STATUSES] })),
   lastSyncedAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
 })
 
@@ -22,6 +22,8 @@ const SummaryResponse = Type.Object({
     online: Type.Integer(),
     offline: Type.Integer(),
     unknown: Type.Integer(),
+    stale: Type.Integer(),
+    syncError: Type.Integer(),
     needsData: Type.Integer(),
   }),
   recent: Type.Array(DeviceRow),
@@ -33,7 +35,7 @@ const SummaryResponse = Type.Object({
  *    route (validasi + otorisasi + format) → service (logika) → repository (SQL).
  */
 const routes: FastifyPluginAsyncTypebox = async (app) => {
-  const service = new DashboardService(new DashboardRepository(app.db))
+  const service = new DashboardService(new DashboardRepository(app.db), app.config)
 
   app.get(
     '/summary',

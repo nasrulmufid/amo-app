@@ -1,4 +1,4 @@
-import type { OnlineStatus } from '@amo/shared'
+import type { DeviceDisplayStatus, OnlineStatus } from '@amo/shared'
 import type { GenieDevice } from './genieacs.client'
 
 /**
@@ -110,4 +110,28 @@ export function deriveOnlineStatus(
   if (!lastInformAt) return 'unknown'
   const ageMs = now.getTime() - lastInformAt.getTime()
   return ageMs <= thresholdSeconds * 1000 ? 'online' : 'offline'
+}
+
+/**
+ * Status tampilan tunggal untuk dashboard dan inventaris.
+ * online_status di DB hanya snapshot saat sync; status operasional dihitung
+ * dari lastInformAt, sedangkan lastSyncedAt menentukan apakah snapshot masih
+ * cukup segar untuk dipercaya.
+ */
+export function deriveDeviceDisplayStatus(
+  input: {
+    linked: boolean
+    syncError: string | null
+    lastSyncedAt: Date | null
+    lastInformAt: Date | null
+  },
+  options: { onlineThresholdSeconds: number; staleAfterSeconds: number; now?: Date },
+): DeviceDisplayStatus {
+  const now = options.now ?? new Date()
+  if (!input.linked) return 'unknown'
+  if (input.syncError) return 'sync_error'
+  if (!input.lastSyncedAt || now.getTime() - input.lastSyncedAt.getTime() > options.staleAfterSeconds * 1000) {
+    return 'stale'
+  }
+  return deriveOnlineStatus(input.lastInformAt, options.onlineThresholdSeconds, now)
 }

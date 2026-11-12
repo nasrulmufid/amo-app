@@ -1,19 +1,67 @@
 import type { DashboardSummaryDTO } from '@amo/shared'
+import type { Env } from '../../config/env'
+import { deriveDeviceDisplayStatus } from '../genieacs/genieacs.mapper'
 import type { DashboardRepository } from './dashboard.repository'
 
 export class DashboardService {
-  constructor(private readonly repo: DashboardRepository) {}
+  constructor(
+    private readonly repo: DashboardRepository,
+    private readonly env: Env,
+  ) {}
 
   async getSummary(): Promise<DashboardSummaryDTO> {
-    // Tiga query independen → jalankan paralel.
-    const [totals, recent, lastSyncedAt] = await Promise.all([
+    // Query independen berjalan paralel; status dihitung dari lastInform aktual,
+    // tidak memakai online_status snapshot yang bisa tertinggal dari GenieACS.
+    const [baseTotals, statusRows, recentRows, lastSyncedAt] = await Promise.all([
       this.repo.getTotals(),
+      this.repo.getStatusRows(),
       this.repo.getRecent(),
       this.repo.getLastSyncedAt(),
     ])
+
+    const now = new Date()
+    const statusOptions = {
+      onlineThresholdSeconds: this.env.ONLINE_THRESHOLD_SECONDS,
+      staleAfterSeconds: this.env.GENIEACS_SYNC_INTERVAL_SECONDS * 3,
+      now,
+    }
+    const totals = { ...baseTotals, online: 0, offline: 0, unknown: 0, stale: 0, syncError: 0 }
+    for (const row of statusRows) {
+      const status = deriveDeviceDisplayStatus(
+        {
+          linked: row.device_id !== null,
+          syncError: row.sync_error,
+          lastSyncedAt: row.last_synced_at,
+          lastInformAt: row.last_inform_at,
+        },
+        statusOptions,
+      )
+      if (status === 'online') totals.online++
+      else if (status === 'offline') totals.offline++
+      else if (status === 'stale') totals.stale++
+      else if (status === 'sync_error') totals.syncError++
+      else totals.unknown++
+    }
+
     return {
       totals,
-      recent: recent.map((r) => ({ ...r, lastSyncedAt: r.lastSyncedAt?.toISOString() ?? null })),
+      recent: recentRows.map((row) => ({
+        uuid: row.uuid,
+        name: row.name,
+        serialNumber: row.serialNumber,
+        manufacturer: row.manufacturer,
+        model: row.model,
+        displayStatus: deriveDeviceDisplayStatus(
+          {
+            linked: row.linked,
+            syncError: row.syncError,
+            lastSyncedAt: row.lastSyncedAt,
+            lastInformAt: row.lastInformAt,
+          },
+          statusOptions,
+        ),
+        lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
+      })),
       lastSyncedAt: lastSyncedAt?.toISOString() ?? null,
     }
   }

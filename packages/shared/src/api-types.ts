@@ -76,7 +76,7 @@ export interface DashboardDeviceRow {
   serialNumber: string | null
   manufacturer: string | null
   model: string | null
-  onlineStatus: OnlineStatus
+  displayStatus: DeviceDisplayStatus
   lastSyncedAt: string | null
 }
 export interface DashboardSummaryDTO {
@@ -85,6 +85,8 @@ export interface DashboardSummaryDTO {
     online: number
     offline: number
     unknown: number
+    stale: number
+    syncError: number
     /** Belum punya koordinat ATAU serial number. */
     needsData: number
   }

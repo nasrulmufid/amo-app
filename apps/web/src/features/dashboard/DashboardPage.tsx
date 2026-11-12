@@ -75,7 +75,7 @@ export default function DashboardPage() {
           <>
             <StatCard label="Total ONU" value={data.totals.total} hint="Terdaftar" icon={<Router className="size-4" />} />
             <StatCard label="Online" value={data.totals.online} hint="Status aktif" icon={<Wifi className="size-4" />} tone="text-status-online" />
-            <StatCard label="Offline" value={data.totals.offline} hint={`Perlu diperiksa · ${data.totals.unknown} belum diketahui`} icon={<WifiOff className="size-4" />} tone="text-status-offline" />
+            <StatCard label="Offline" value={data.totals.offline} hint={`${data.totals.stale} data stale · ${data.totals.unknown} unknown · ${data.totals.syncError} sync error`} icon={<WifiOff className="size-4" />} tone="text-status-offline" />
             <StatCard label="Perlu data" value={data.totals.needsData} hint="Koordinat / serial belum lengkap" icon={<CircleAlert className="size-4" />} tone="text-status-stale" />
           </>
         ) : null}
@@ -116,7 +116,7 @@ export default function DashboardPage() {
                         <div className="text-xs text-muted-foreground">{d.serialNumber ?? 'Serial belum ada'}</div>
                       </TableCell>
                       <TableCell>{[d.manufacturer, d.model].filter(Boolean).join(' ') || '—'}</TableCell>
-                      <TableCell><StatusBadge status={d.onlineStatus} /></TableCell>
+                      <TableCell><StatusBadge status={d.displayStatus} /></TableCell>
                       <TableCell className="text-muted-foreground">{formatRelative(d.lastSyncedAt)}</TableCell>
                     </TableRow>
                   ))}

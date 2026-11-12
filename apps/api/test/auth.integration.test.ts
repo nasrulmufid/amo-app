@@ -201,26 +201,34 @@ describe.skipIf(!DB_URL)('alur sesi & RBAC (MySQL nyata)', () => {
       const get = async () => (await app.inject({ method: 'GET', url: '/api/v1/dashboard/summary', cookies: s.cookies })).json().data
 
       const before = await get()
-      const add = async (name: string, serial: string | null, lat: number | null, status: 'online' | 'offline' | null) => {
+      const add = async (name: string, serial: string | null, lat: number | null, status: 'online' | 'offline' | null | 'stale') => {
         const [r] = await app.db.query<ResultSetHeader>(
           'INSERT INTO onu_inventory (uuid, name, serial_number, latitude, longitude) VALUES (?, ?, ?, ?, ?)',
           [randomUUID(), name, serial, lat, lat === null ? null : 104.75])
         inventoryIds.push(r.insertId)
-        if (status) await app.db.query(
-          "INSERT INTO onu_devices (inventory_id, genieacs_device_id, online_status, last_synced_at) VALUES (?, ?, ?, UTC_TIMESTAMP())",
-          [r.insertId, `it-${run}-${name}`, status])
+        if (status && status !== 'stale') await app.db.query(
+          `INSERT INTO onu_devices (inventory_id, genieacs_device_id, online_status, last_inform_at, last_synced_at)
+           VALUES (?, ?, ?, ?, UTC_TIMESTAMP())`,
+          [r.insertId, `it-${run}-${name}`, status, status === 'online' ? new Date() : new Date(Date.now() - 15 * 60_000)])
+        if (status === 'stale') await app.db.query(
+          `INSERT INTO onu_devices (inventory_id, genieacs_device_id, online_status, last_inform_at, last_synced_at)
+           VALUES (?, ?, 'online', UTC_TIMESTAMP(), DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? SECOND))`,
+          [r.insertId, `it-${run}-${name}`, app.config.GENIEACS_SYNC_INTERVAL_SECONDS * 4])
       }
       await add(`A-${run}`, `SN-A-${run}`, -2.99, 'online') //   lengkap, online
       await add(`B-${run}`, `SN-B-${run}`, null, 'offline') //   tanpa koordinat, offline
       await add(`C-${run}`, null, -2.9, null) //                  tanpa serial & belum tertaut ACS → unknown
+      await add(`D-${run}`, `SN-D-${run}`, -2.8, 'stale') //      sync tertinggal → tidak dihitung online
 
       const after = await get()
-      expect(after.totals.total - before.totals.total).toBe(3)
+      expect(after.totals.total - before.totals.total).toBe(4)
       expect(after.totals.online - before.totals.online).toBe(1)
       expect(after.totals.offline - before.totals.offline).toBe(1)
       expect(after.totals.unknown - before.totals.unknown).toBe(1)
+      expect(after.totals.stale - before.totals.stale).toBe(1)
       expect(after.totals.needsData - before.totals.needsData).toBe(2) // B (tanpa koordinat) + C (tanpa serial)
       expect(after.recent.map((r: { name: string }) => r.name)).toContain(`C-${run}`) // terbaru di atas
+      expect(after.recent.find((r: { name: string }) => r.name === `D-${run}`).displayStatus).toBe('stale')
       expect(after.lastSyncedAt).not.toBeNull()
     })
   })
