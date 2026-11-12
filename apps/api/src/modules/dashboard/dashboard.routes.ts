@@ -35,7 +35,7 @@ const SummaryResponse = Type.Object({
  *    route (validasi + otorisasi + format) → service (logika) → repository (SQL).
  */
 const routes: FastifyPluginAsyncTypebox = async (app) => {
-  const service = new DashboardService(new DashboardRepository(app.db), app.config)
+  const service = new DashboardService(new DashboardRepository(app.db), () => app.syncScheduler.getConfig())
 
   app.get(
     '/summary',

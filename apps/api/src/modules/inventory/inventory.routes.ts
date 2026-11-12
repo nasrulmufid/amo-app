@@ -28,7 +28,7 @@ import { InventoryService } from './inventory.service'
  * ⚠ Rute statis (`/facets`, `/map`) didaftarkan SEBELUM `/:uuid`.
  */
 const routes: FastifyPluginAsyncTypebox = async (app) => {
-  const service = new InventoryService(new InventoryRepository(app.db), app.config)
+  const service = new InventoryService(new InventoryRepository(app.db), app.config, () => app.syncScheduler.getConfig())
   const read = [app.authenticate, app.requirePermission('inventory.read')]
   const write = [app.authenticate, app.requirePermission('inventory.write')]
 

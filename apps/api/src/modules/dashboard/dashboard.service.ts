@@ -1,28 +1,29 @@
 import type { DashboardSummaryDTO } from '@amo/shared'
-import type { Env } from '../../config/env'
 import { deriveDeviceDisplayStatus } from '../genieacs/genieacs.mapper'
+import type { SyncRuntimeConfig } from '../genieacs/sync.config'
 import type { DashboardRepository } from './dashboard.repository'
 
 export class DashboardService {
   constructor(
     private readonly repo: DashboardRepository,
-    private readonly env: Env,
+    private readonly getSyncConfig: () => Promise<SyncRuntimeConfig>,
   ) {}
 
   async getSummary(): Promise<DashboardSummaryDTO> {
     // Query independen berjalan paralel; status dihitung dari lastInform aktual,
     // tidak memakai online_status snapshot yang bisa tertinggal dari GenieACS.
-    const [baseTotals, statusRows, recentRows, lastSyncedAt] = await Promise.all([
+    const [baseTotals, statusRows, recentRows, lastSyncedAt, syncConfig] = await Promise.all([
       this.repo.getTotals(),
       this.repo.getStatusRows(),
       this.repo.getRecent(),
       this.repo.getLastSyncedAt(),
+      this.getSyncConfig(),
     ])
 
     const now = new Date()
     const statusOptions = {
-      onlineThresholdSeconds: this.env.ONLINE_THRESHOLD_SECONDS,
-      staleAfterSeconds: this.env.GENIEACS_SYNC_INTERVAL_SECONDS * 3,
+      onlineThresholdSeconds: syncConfig.onlineThresholdSeconds,
+      staleAfterSeconds: syncConfig.intervalSeconds * 3,
       now,
     }
     const totals = { ...baseTotals, online: 0, offline: 0, unknown: 0, stale: 0, syncError: 0 }

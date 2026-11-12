@@ -76,6 +76,9 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
     async (request) => {
       const userId = request.auth?.user.id ?? null
       const updated = await service.update(request.body.values, userId)
+      if ('sync.intervalSeconds' in request.body.values || 'sync.enabled' in request.body.values) {
+        await app.syncScheduler.refresh()
+      }
       await app.audit.record(request, {
         action: 'settings.update',
         resourceType: 'app_settings',

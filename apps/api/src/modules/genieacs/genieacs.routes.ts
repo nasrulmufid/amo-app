@@ -105,10 +105,11 @@ const routes: FastifyPluginAsyncTypebox = async (app) => {
     },
     async (request) => {
       const status = await app.sync.status()
+      const config = await app.syncScheduler.getConfig()
       return ok(request, {
-        enabled: app.config.GENIEACS_SYNC_INTERVAL_SECONDS > 0,
-        intervalSeconds: app.config.GENIEACS_SYNC_INTERVAL_SECONDS,
-        onlineThresholdSeconds: app.config.ONLINE_THRESHOLD_SECONDS,
+        enabled: config.enabled,
+        intervalSeconds: config.intervalSeconds,
+        onlineThresholdSeconds: config.onlineThresholdSeconds,
         ...status,
       })
     },

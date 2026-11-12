@@ -162,7 +162,9 @@ function GeneralSettings() {
       <Card>
         <CardHeader>
           <CardTitle>Sinkronisasi GenieACS</CardTitle>
-          <CardDescription>Interval dan ambang status perangkat.</CardDescription>
+          <CardDescription>
+            Sinkronisasi berjalan saat API mulai dan mengikuti interval tersimpan. Perubahan interval atau sakelar berlaku tanpa restart.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">

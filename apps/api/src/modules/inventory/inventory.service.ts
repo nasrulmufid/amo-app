@@ -12,6 +12,7 @@ import type {
 import type { Env } from '../../config/env'
 import { Errors } from '../../common/errors'
 import { deriveDeviceDisplayStatus, deriveOnlineStatus } from '../genieacs/genieacs.mapper'
+import type { SyncRuntimeConfig } from '../genieacs/sync.config'
 import type { InventoryRepository, InventoryRow } from './inventory.repository'
 
 /**
@@ -39,6 +40,7 @@ export class InventoryService {
   constructor(
     private readonly repo: InventoryRepository,
     private readonly env: Env,
+    private readonly getSyncConfig: () => Promise<SyncRuntimeConfig>,
   ) {}
 
   // ── Baca ──────────────────────────────────────────────────────────────────
@@ -55,12 +57,13 @@ export class InventoryService {
     sort?: 'name' | 'createdAt' | 'lastSyncedAt' | 'status'
     order?: 'asc' | 'desc'
   }) {
+    const syncConfig = await this.getSyncConfig()
     const { rows, total } = await this.repo.list({
       ...query,
-      onlineThresholdSeconds: this.env.ONLINE_THRESHOLD_SECONDS,
+      onlineThresholdSeconds: syncConfig.onlineThresholdSeconds,
     })
     return {
-      items: rows.map((r) => this.toListItem(r)),
+      items: rows.map((r) => this.toListItem(r, syncConfig)),
       pagination: {
         page: query.page,
         pageSize: query.pageSize,
@@ -93,15 +96,16 @@ export class InventoryService {
   }
 
   async getByUuid(uuid: string): Promise<InventoryDetailDTO> {
-    const row = await this.repo.findByUuid(uuid)
+    const [row, syncConfig] = await Promise.all([this.repo.findByUuid(uuid), this.getSyncConfig()])
     if (!row) throw Errors.notFound('ONU')
-    return this.toDetail(row)
+    return this.toDetail(row, syncConfig)
   }
 
   async map(): Promise<{ items: InventoryMapPointDTO[]; withoutCoordinates: number }> {
-    const [rows, withoutCoordinates] = await Promise.all([
+    const [rows, withoutCoordinates, syncConfig] = await Promise.all([
       this.repo.listWithCoordinates(),
       this.repo.countWithoutCoordinates(),
+      this.getSyncConfig(),
     ])
     return {
       items: rows.map((r) => ({
@@ -114,8 +118,8 @@ export class InventoryService {
         latitude: r.latitude as number,
         longitude: r.longitude as number,
         locationName: r.locationName,
-        onlineStatus: this.onlineStatus(r),
-        displayStatus: this.displayStatus(r),
+        onlineStatus: this.onlineStatus(r, syncConfig),
+        displayStatus: this.displayStatus(r, syncConfig),
       })),
       withoutCoordinates,
     }
@@ -169,7 +173,7 @@ export class InventoryService {
 
     const created = await this.repo.findById(id)
     if (!created) throw Errors.notFound('ONU')
-    return this.toDetail(created)
+    return this.toDetail(created, await this.getSyncConfig())
   }
 
   async update(uuid: string, patch: InventoryUpdateInput): Promise<InventoryDetailDTO> {
@@ -216,7 +220,7 @@ export class InventoryService {
 
     const updated = await this.repo.findById(current.id)
     if (!updated) throw Errors.notFound('ONU')
-    return this.toDetail(updated)
+    return this.toDetail(updated, await this.getSyncConfig())
   }
 
   /**
@@ -283,7 +287,7 @@ export class InventoryService {
    *  - data lebih tua dari ambang   → 'stale'
    *  - selain itu                   → dihitung dari lastInformAt terbaru
    */
-  private displayStatus(row: InventoryRow): DeviceDisplayStatus {
+  private displayStatus(row: InventoryRow, config: SyncRuntimeConfig): DeviceDisplayStatus {
     return deriveDeviceDisplayStatus(
       {
         linked: row.deviceId !== null,
@@ -292,17 +296,17 @@ export class InventoryService {
         lastInformAt: row.lastInformAt,
       },
       {
-        onlineThresholdSeconds: this.env.ONLINE_THRESHOLD_SECONDS,
-        staleAfterSeconds: this.env.GENIEACS_SYNC_INTERVAL_SECONDS * STALE_FACTOR,
+        onlineThresholdSeconds: config.onlineThresholdSeconds,
+        staleAfterSeconds: config.intervalSeconds * STALE_FACTOR,
       },
     )
   }
 
-  private onlineStatus(row: InventoryRow): OnlineStatus {
-    return deriveOnlineStatus(row.lastInformAt, this.env.ONLINE_THRESHOLD_SECONDS)
+  private onlineStatus(row: InventoryRow, config: SyncRuntimeConfig): OnlineStatus {
+    return deriveOnlineStatus(row.lastInformAt, config.onlineThresholdSeconds)
   }
 
-  private toListItem(row: InventoryRow): InventoryListItemDTO {
+  private toListItem(row: InventoryRow, config: SyncRuntimeConfig): InventoryListItemDTO {
     return {
       uuid: row.uuid,
       name: row.name,
@@ -312,8 +316,8 @@ export class InventoryService {
       // Metadata manual menang; bila kosong → pakai IP dari device ACS (IPTR069 dkk.).
       managementIp: row.managementIp ?? row.deviceManagementIp,
       locationName: row.locationName,
-      onlineStatus: this.onlineStatus(row),
-      displayStatus: this.displayStatus(row),
+      onlineStatus: this.onlineStatus(row, config),
+      displayStatus: this.displayStatus(row, config),
       lastInformAt: row.lastInformAt?.toISOString() ?? null,
       lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
       isActive: row.isActive,
@@ -321,9 +325,9 @@ export class InventoryService {
     }
   }
 
-  private toDetail(row: InventoryRow): InventoryDetailDTO {
+  private toDetail(row: InventoryRow, config: SyncRuntimeConfig): InventoryDetailDTO {
     return {
-      ...this.toListItem(row),
+      ...this.toListItem(row, config),
       oui: row.oui,
       productClass: row.productClass ?? row.deviceProductClass,
       remoteScheme: row.remoteScheme,
@@ -340,7 +344,7 @@ export class InventoryService {
               genieacsDeviceId: row.genieacsDeviceId,
               lastInformAt: row.lastInformAt?.toISOString() ?? null,
               lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
-              onlineStatus: this.onlineStatus(row),
+              onlineStatus: this.onlineStatus(row, config),
               syncError: row.syncError,
               parameters: (row.parametersJson as Record<string, unknown> | null) ?? null,
             }

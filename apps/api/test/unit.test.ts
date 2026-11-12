@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from '../src/common/password'
 import { loadEnv } from '../src/config/env'
 import { redact } from '../src/modules/audit/audit.service'
 import { deriveDeviceDisplayStatus, deriveOnlineStatus, normalizeDevice, readParam } from '../src/modules/genieacs/genieacs.mapper'
+import { resolveSyncRuntimeConfig } from '../src/modules/genieacs/sync.config'
 import { SessionService } from '../src/modules/auth/session.service'
 
 describe('RBAC (shared)', () => {
@@ -66,6 +67,35 @@ describe('env', () => {
   })
   it('menolak daftar port tidak valid', () => {
     expect(() => loadEnv({ ...base, REMOTE_ALLOWED_PORTS: '80,abc' })).toThrow(/REMOTE_ALLOWED_PORTS/)
+  })
+})
+
+describe('konfigurasi scheduler GenieACS', () => {
+  const env = loadEnv({
+    APP_BASE_URL: 'https://amo.example.com',
+    SESSION_SECRET: 'x'.repeat(40),
+    DATABASE_URL: 'mysql://u:p@h:3306/amo',
+  })
+
+  it('memakai interval dan sakelar dari app_settings tanpa restart', () => {
+    expect(resolveSyncRuntimeConfig({
+      'sync.enabled': true,
+      'sync.intervalSeconds': 300,
+      'sync.onlineThresholdSeconds': 900,
+    }, env)).toEqual({ enabled: true, intervalSeconds: 300, onlineThresholdSeconds: 900 })
+    expect(resolveSyncRuntimeConfig({ 'sync.enabled': false, 'sync.intervalSeconds': 5 }, env)).toEqual({
+      enabled: false,
+      intervalSeconds: 5,
+      onlineThresholdSeconds: env.ONLINE_THRESHOLD_SECONDS,
+    })
+  })
+
+  it('fallback ke environment jika nilai tersimpan tidak valid', () => {
+    expect(resolveSyncRuntimeConfig({ 'sync.intervalSeconds': -1, 'sync.onlineThresholdSeconds': 'invalid' }, env)).toEqual({
+      enabled: true,
+      intervalSeconds: env.GENIEACS_SYNC_INTERVAL_SECONDS,
+      onlineThresholdSeconds: env.ONLINE_THRESHOLD_SECONDS,
+    })
   })
 })
 
